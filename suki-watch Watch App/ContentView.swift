@@ -1,24 +1,8 @@
-//
-//  ContentView.swift
-//  suki-watch Watch App
-//
-//  Created by Siddharth Verma on 02/10/26.
-//
-
 import SwiftUI
 
+/// Legacy entry — app uses `RootView` from `suki_watchApp`.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        RootView()
     }
-}
-
-#Preview {
-    ContentView()
 }

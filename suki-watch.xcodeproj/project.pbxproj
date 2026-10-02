@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		EBBABCF1306FC27700D6D06A /* suki-watch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = EBBABCF0306FC27700D6D06A /* suki-watch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EBBGRP032306FC27A00D6D06A /* SukiGRPC in Frameworks */ = {isa = PBXBuildFile; productRef = EBBGRP022306FC27A00D6D06A /* SukiGRPC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,6 +76,7 @@
 		EBBABCED306FC27700D6D06A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				EBBGRP032306FC27A00D6D06A /* SukiGRPC in Frameworks */,
 			);
 		};
 		EBBABCFC306FC27A00D6D06A /* Frameworks */ = {
@@ -145,6 +147,9 @@
 				EBBABCF4306FC27700D6D06A /* suki-watch Watch App */,
 			);
 			name = "suki-watch Watch App";
+			packageProductDependencies = (
+				EBBGRP022306FC27A00D6D06A /* SukiGRPC */,
+			);
 			productName = "suki-watch Watch App";
 			productReference = EBBABCF0306FC27700D6D06A /* suki-watch Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -226,6 +231,9 @@
 			);
 			mainGroup = EBBABCE3306FC27700D6D06A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EBBGRP012306FC27A00D6D06A /* XCLocalSwiftPackageReference "Packages/SukiGRPC" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EBBABCEB306FC27700D6D06A /* Products */;
 			projectDirPath = "";
@@ -426,6 +434,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "suki-watch";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Suki records audio during ambient sessions.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Suki uses dictation to fill note sections.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -459,6 +469,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "suki-watch";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Suki records audio during ambient sessions.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Suki uses dictation to fill note sections.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -655,6 +667,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		EBBGRP012306FC27A00D6D06A /* XCLocalSwiftPackageReference "Packages/SukiGRPC" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SukiGRPC;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		EBBGRP022306FC27A00D6D06A /* SukiGRPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SukiGRPC;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EBBABCE4306FC27700D6D06A /* Project object */;
 	validationLevel = 1;
