@@ -32,6 +32,9 @@ struct AmbientFlowView: View {
         }
         .navigationTitle("Ambient")
         .task { await viewModel.start() }
+        .onDisappear {
+            viewModel.handleNavigationAway()
+        }
     }
 
     @ViewBuilder
@@ -81,12 +84,12 @@ struct AmbientFlowView: View {
     private var noteTypeStep: some View {
         Section {
             Button("Review note") {
-                Task { await viewModel.finishAmbient(action: .reviewNote) }
+                viewModel.finishAmbient(action: .reviewNote)
             }
             .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
 
             Button("Send to EHR") {
-                Task { await viewModel.finishAmbient(action: .sendToEHR) }
+                viewModel.finishAmbient(action: .sendToEHR)
             }
             .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
         }

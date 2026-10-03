@@ -5,6 +5,8 @@ struct EditableSection: Identifiable, Hashable {
     let id: String
     var name: String
     var text: String
+    /// Text loaded from the server. Unchanged sections are not written back on submit.
+    var loadedText: String
 }
 
 @Observable
@@ -59,15 +61,18 @@ final class NoteViewModel {
                 return EditableSection(
                     id: sectionId,
                     name: section.name ?? "Section",
-                    text: section.bodyText
+                    text: section.bodyText,
+                    loadedText: section.bodyText
                 )
             }
             if sections.isEmpty, let first = raw.first {
+                let body = first.bodyText
                 sections = [
                     EditableSection(
                         id: first.id ?? first.name ?? "section-0",
                         name: first.name ?? "Section",
-                        text: first.bodyText
+                        text: body,
+                        loadedText: body
                     )
                 ]
             }
@@ -107,7 +112,12 @@ final class NoteViewModel {
                     patientId: patientIdForSubmit,
                     appointmentId: appointmentId ?? "",
                     sections: sections.map {
-                        NoteSubmitSection(id: $0.id, name: $0.name, plainText: $0.text)
+                        NoteSubmitSection(
+                            id: $0.id,
+                            name: $0.name,
+                            plainText: $0.text,
+                            loadedPlainText: $0.loadedText
+                        )
                     }
                 )
                 try await submitService.submit(payload: payload, session: session)

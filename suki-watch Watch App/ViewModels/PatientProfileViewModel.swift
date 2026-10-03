@@ -30,8 +30,8 @@ final class PatientProfileViewModel {
         do {
             let visible = try await noteService.notesForPatientProfile(patientId: patientId)
             let split = noteService.splitNotes(visible)
-            currentNotes = Array(split.current.prefix(5))
-            priorNotes = Array(split.prior.prefix(5))
+            currentNotes = split.current
+            priorNotes = split.prior
         } catch {
             errorMessage = error.localizedDescription
         }

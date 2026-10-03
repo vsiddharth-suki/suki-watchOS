@@ -29,11 +29,14 @@ public struct NoteSubmitSection: Sendable {
     public let id: String
     public let name: String
     public let plainText: String
+    /// Server text at load time. Submit skips sections whose text has not changed.
+    public let loadedPlainText: String
 
-    public init(id: String, name: String, plainText: String) {
+    public init(id: String, name: String, plainText: String, loadedPlainText: String = "") {
         self.id = id
         self.name = name
         self.plainText = plainText
+        self.loadedPlainText = loadedPlainText
     }
 }
 
@@ -288,8 +291,14 @@ public enum NoteSubmitGRPCClient {
         state.didPrepareSubmit = true
 
         let noteTypeID = composition.metadata.notetypeID.isEmpty ? payload.noteTypeId : composition.metadata.notetypeID
+        // Sending UPDATE_SECTION with only id/name (or plain_text and no content_s2)
+        // replaces the stored section and drops structured content. EMR then rejects
+        // the note as an empty composition. Only persist sections the user edited.
         let sectionUpdates = payload.sections.filter { section in
-            !section.id.isEmpty && section.id != "default-section"
+            guard !section.id.isEmpty, section.id != "default-section" else { return false }
+            let current = section.plainText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let loaded = section.loadedPlainText.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !current.isEmpty && current != loaded
         }
 
         let requests: [Suki_Pb_S2_DialogRequest] = {

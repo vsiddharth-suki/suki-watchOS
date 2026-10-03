@@ -38,4 +38,19 @@ enum DateRangeFormatter {
         f.timeStyle = .none
         return f.string(from: date)
     }
+
+    static func noteServiceDateLabel(iso: String?) -> String {
+        guard let iso, !iso.isEmpty else { return "—" }
+        let parsers: [ISO8601DateFormatter] = {
+            let withFraction = ISO8601DateFormatter()
+            withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            return [withFraction, plain]
+        }()
+        if let parsed = parsers.compactMap({ $0.date(from: iso) }).first {
+            return shortDate(parsed)
+        }
+        return appointmentTimeLabel(iso: iso)
+    }
 }

@@ -115,6 +115,60 @@ struct NotesListResponse: Codable {
     var results: [NoteListItem]
 }
 
+struct UnfinishedNotesResponse: Codable {
+    var count: Int?
+    var results: [NoteListItem]
+}
+
+struct InProgressAmbientSessionsResponse: Decodable {
+    var sessions: [InProgressAmbientSession]?
+    var patients: [AmbientSessionPatient]?
+}
+
+struct InProgressAmbientSession: Decodable {
+    var noteId: String?
+    var ambientSessionId: String?
+    var patientId: String?
+    var appointmentId: String?
+    var notetypeId: String?
+    var startTime: String?
+    var isNoteCreated: Bool?
+    var isAutoSubmit: Bool?
+    var patientLabel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case noteId = "note_id"
+        case ambientSessionId = "ambient_session_id"
+        case patientId = "patient_id"
+        case appointmentId = "appointment_id"
+        case notetypeId = "notetype_id"
+        case startTime = "start_time"
+        case isNoteCreated = "is_note_created"
+        case isAutoSubmit = "is_auto_submit"
+        case patientLabel = "patient_label_for_composition"
+    }
+}
+
+struct AmbientSessionPatient: Decodable, Identifiable {
+    var id: String?
+    var person: PersonName?
+
+    var displayName: String {
+        person?.fullName ?? "Patient"
+    }
+}
+
+struct HomeRecentNote: Identifiable, Hashable {
+    var id: String
+    var noteId: String?
+    var patientId: String?
+    var patientName: String?
+    var headline: String
+    var subtitle: String
+    var timeLabel: String
+    var isIncomplete: Bool
+}
+
 struct NoteListItem: Codable, Identifiable, Hashable {
     var id: String?
     var noteId: String?
@@ -148,6 +202,24 @@ struct NoteListItem: Codable, Identifiable, Hashable {
         normalizedStatus == "INCOMPLETE" || normalizedStatus == "AMBIENT_IN_PROGRESS"
     }
 
+    var isAmbientInProgress: Bool {
+        normalizedStatus == "AMBIENT_IN_PROGRESS"
+    }
+
+    /// iOS unfinished list sort: appointment date of service when linked, else composition created.
+    var unfinishedSortDate: Date {
+        if let appointmentDate = metadata?.appointment?.startsAt,
+           !appointmentDate.isEmpty,
+           let parsed = NoteDateClassification.parseCreatedAt(appointmentDate) {
+            return parsed
+        }
+        return NoteDateClassification.parseCreatedAt(compositionCreatedDateString) ?? .distantPast
+    }
+
+    var dateOfServiceLabel: String {
+        DateRangeFormatter.noteServiceDateLabel(iso: effectiveDateString)
+    }
+
     var isSubmitted: Bool {
         Self.isSubmittedStatus(normalizedStatus)
     }
@@ -165,11 +237,18 @@ struct NoteListItem: Codable, Identifiable, Hashable {
         }
     }
 
+    /// iOS `PriorNotePresenter` sorts by composition `createdDate`.
+    var compositionCreatedDateString: String? {
+        if let createdAt, !createdAt.isEmpty { return createdAt }
+        if let compositionCreatedAt, !compositionCreatedAt.isEmpty { return compositionCreatedAt }
+        return nil
+    }
+
     var sortDate: Date? {
         NoteDateClassification.parseCreatedAt(effectiveDateString)
     }
 
-    /// Aligns with iOS `SukiComposition` date used for profile sorting and sections.
+    /// Appointment start when present, else composition created — matches iOS `getDateSourceType` for Athena.
     var effectiveDateString: String? {
         if let appointmentDate = metadata?.appointment?.startsAt, !appointmentDate.isEmpty {
             return appointmentDate
@@ -209,6 +288,7 @@ struct NoteListMetadata: Codable, Hashable {
     var patient: PatientSummary?
     var user: NoteListUser?
     var appointment: NoteListAppointment?
+    var patientLabel: String?
 
     enum CodingKeys: String, CodingKey {
         case name
@@ -217,6 +297,7 @@ struct NoteListMetadata: Codable, Hashable {
         case patient
         case user
         case appointment
+        case patientLabel
     }
 }
 
@@ -417,4 +498,22 @@ struct CurrentUser: Decodable {
 struct CurrentUserPerson: Decodable {
     var prefix: String?
     var firstName: String?
+    var lastName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case prefix
+        case firstName
+        case lastName
+        case first_name
+        case last_name
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        prefix = try container.decodeIfPresent(String.self, forKey: .prefix)
+        firstName = try container.decodeIfPresent(String.self, forKey: .firstName)
+            ?? container.decodeIfPresent(String.self, forKey: .first_name)
+        lastName = try container.decodeIfPresent(String.self, forKey: .lastName)
+            ?? container.decodeIfPresent(String.self, forKey: .last_name)
+    }
 }

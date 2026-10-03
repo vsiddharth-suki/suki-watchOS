@@ -61,6 +61,17 @@ struct ScheduleView: View {
             }
         }
         .navigationTitle("Schedule")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    path.append(.search)
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Search patients")
+            }
+        }
         .task { await viewModel.load() }
     }
 }

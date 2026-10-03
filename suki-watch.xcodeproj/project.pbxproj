@@ -57,6 +57,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EBBABCF4306FC27700D6D06A /* suki-watch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EBBEXT01306FC27A00D6D06A /* Exceptions for "suki-watch Watch App" folder in "suki-watch Watch App" target */,
+			);
 			path = "suki-watch Watch App";
 			sourceTree = "<group>";
 		};
@@ -70,6 +73,17 @@
 			path = "suki-watch Watch AppUITests";
 			sourceTree = "<group>";
 		};
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EBBEXT01306FC27A00D6D06A /* Exceptions for "suki-watch Watch App" folder in "suki-watch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				WatchApp-Info.plist,
+				"suki-watch Watch App.entitlements",
+			);
+			target = EBBABCEF306FC27700D6D06A /* suki-watch Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -428,11 +442,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "suki-watch Watch App/suki-watch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3ZSB4F4SX9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "suki-watch Watch App/WatchApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "suki-watch";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Suki records audio during ambient sessions.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Suki uses dictation to fill note sections.";
@@ -463,11 +479,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "suki-watch Watch App/suki-watch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 3ZSB4F4SX9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "suki-watch Watch App/WatchApp-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "suki-watch";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Suki records audio during ambient sessions.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Suki uses dictation to fill note sections.";

@@ -2,6 +2,7 @@ import Foundation
 
 enum AppRoute: Hashable {
     case schedule
+    case unfinishedNotes
     case search
     case patientProfile(patientId: String, patientName: String, appointmentId: String?)
     case note(noteId: String, patientId: String?, patientName: String?)

@@ -29,6 +29,8 @@ struct RootView: View {
         switch route {
         case .schedule:
             ScheduleView(path: $path)
+        case .unfinishedNotes:
+            UnfinishedNotesView(path: $path)
         case .search:
             SearchView(path: $path)
         case let .patientProfile(patientId, patientName, appointmentId):

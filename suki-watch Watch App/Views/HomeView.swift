@@ -58,6 +58,33 @@ struct HomeView: View {
             }
 
             Section {
+                if viewModel.isLoadingRecentNotes && viewModel.recentNotes.isEmpty {
+                    ProgressView()
+                } else if let error = viewModel.recentNotesError {
+                    Text(error).font(.caption2).foregroundStyle(.red)
+                } else if viewModel.recentNotes.isEmpty {
+                    Text("None").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(viewModel.recentNotes) { note in
+                        Button {
+                            openRecentNote(note)
+                        } label: {
+                            RecentNoteRowView(note: note)
+                        }
+                    }
+                }
+
+                Button {
+                    path.append(.unfinishedNotes)
+                } label: {
+                    Text("View All")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            } header: {
+                Text("Recent notes")
+            }
+
+            Section {
                 Button {
                     path.append(.ambient(AmbientLaunchContext(
                         patientId: nil,
@@ -104,6 +131,23 @@ struct HomeView: View {
             patientId: patientId,
             patientName: appointment.patient?.displayName ?? "Patient",
             appointmentId: appointment.id
+        ))
+    }
+
+    private func openRecentNote(_ note: HomeRecentNote) {
+        if let noteId = note.noteId, !noteId.isEmpty {
+            path.append(.note(
+                noteId: noteId,
+                patientId: note.patientId,
+                patientName: note.patientName
+            ))
+            return
+        }
+        guard let patientId = note.patientId else { return }
+        path.append(.patientProfile(
+            patientId: patientId,
+            patientName: note.patientName ?? "Patient",
+            appointmentId: nil
         ))
     }
 }

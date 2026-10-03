@@ -17,8 +17,9 @@ final class AmbientService: NSObject {
 
     func beginSession() throws {
         sessionId = UUID().uuidString.lowercased()
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(sessionId).wav")
+        let url = try AmbientUploadPendingStore.recordingFileURL(ambientSessionId: sessionId)
         recordingURL = url
+        print("[Ambient] Recording saved to: \(url.path)")
 
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatLinearPCM),
@@ -55,6 +56,25 @@ final class AmbientService: NSObject {
         recorder = nil
         isPaused = false
         try? AVAudioSession.sharedInstance().setActive(false)
+    }
+
+    /// Stops recording and deletes the local WAV (user aborted the flow).
+    func cancelSession() {
+        stopRecording()
+        discardRecordingFile()
+    }
+
+    private func discardRecordingFile() {
+        guard let url = recordingURL else { return }
+        if FileManager.default.fileExists(atPath: url.path) {
+            do {
+                try FileManager.default.removeItem(at: url)
+                print("[Ambient] Deleted recording file: \(url.path)")
+            } catch {
+                print("[Ambient] Failed to delete recording file: \(error.localizedDescription)")
+            }
+        }
+        recordingURL = nil
     }
 
     func submitMetadata(
@@ -112,12 +132,11 @@ final class AmbientService: NSObject {
         let uploadInfo = try await api.send(descriptor, as: FetchUploadURLResponse.self)
         guard let uploadURL = URL(string: uploadInfo.url) else { return }
 
-        var request = URLRequest(url: uploadURL)
-        request.httpMethod = "PUT"
-        request.setValue("audio/wave", forHTTPHeaderField: "Content-Type")
-        let (_, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL)
-        guard let http = response as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else {
-            throw APIError.server((response as? HTTPURLResponse)?.statusCode ?? -1, "Audio upload failed")
-        }
+        try await AmbientBackgroundUploadSession.shared.upload(
+            fileURL: fileURL,
+            to: uploadURL,
+            ambientSessionId: sessionId
+        )
+        discardRecordingFile()
     }
 }

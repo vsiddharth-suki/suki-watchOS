@@ -61,8 +61,8 @@ final class NoteService {
 
     func splitNotes(_ notes: [NoteListItem]) -> (current: [NoteListItem], prior: [NoteListItem]) {
         let sorted = notes.sorted { lhs, rhs in
-            let left = lhs.sortDate ?? .distantPast
-            let right = rhs.sortDate ?? .distantPast
+            let left = NoteDateClassification.parseCreatedAt(lhs.compositionCreatedDateString) ?? .distantPast
+            let right = NoteDateClassification.parseCreatedAt(rhs.compositionCreatedDateString) ?? .distantPast
             return left > right
         }
         var current: [NoteListItem] = []

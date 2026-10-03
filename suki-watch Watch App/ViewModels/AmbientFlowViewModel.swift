@@ -115,11 +115,10 @@ final class AmbientFlowViewModel {
         }
     }
 
-    func finishAmbient(action: AmbientFinishAction) async {
+    func finishAmbient(action: AmbientFinishAction) {
         isLoading = true
         errorMessage = nil
         completionMessage = nil
-        defer { isLoading = false }
         ambientService.stopRecording()
         isRecording = false
         isPaused = false
@@ -127,28 +126,55 @@ final class AmbientFlowViewModel {
 
         let autoSubmit = action == .sendToEHR
         let patientId = selectedPatient?.id ?? launch.patientId
+        let noteTypeId = launch.noteId == nil ? selectedNoteType?.id : nil
+        let noteId = launch.noteId
+        let appointmentId = launch.appointmentId
+        let service = ambientService
 
-        do {
-            try await ambientService.submitMetadata(
-                noteTypeId: launch.noteId == nil ? selectedNoteType?.id : nil,
-                noteId: launch.noteId,
+        AmbientSessionCompletion.shared.start(service: service) {
+            try await service.submitMetadata(
+                noteTypeId: noteTypeId,
+                noteId: noteId,
                 patientId: patientId,
-                appointmentId: launch.appointmentId,
+                appointmentId: appointmentId,
                 autoSubmitToEMR: autoSubmit
             )
-            try await ambientService.uploadRecordingIfNeeded()
-
-            switch action {
-            case .reviewNote:
-                completionMessage = "Ambient session saved. Review the note from the patient profile when ready."
-            case .sendToEHR:
-                completionMessage = "Ambient session saved. Note will auto-submit to the EHR when ready."
+            try await service.uploadRecordingIfNeeded()
+        } onComplete: { [weak self] result in
+            guard let self else { return }
+            isLoading = false
+            switch result {
+            case .success:
+                switch action {
+                case .reviewNote:
+                    completionMessage = "Ambient session saved. Review the note from the patient profile when ready."
+                case .sendToEHR:
+                    completionMessage = "Ambient session saved. Note will auto-submit to the EHR when ready."
+                }
+                step = .done
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+                step = .noteType
             }
-            step = .done
-        } catch {
-            errorMessage = error.localizedDescription
-            step = .noteType
         }
+    }
+
+    /// Called when the ambient screen is popped (back). Upload/metadata finish continues in background.
+    func handleNavigationAway() {
+        if AmbientSessionCompletion.shared.isRunning { return }
+        switch step {
+        case .finishing, .done:
+            return
+        default:
+            break
+        }
+        abortSessionIfActive()
+    }
+
+    private func abortSessionIfActive() {
+        ambientService.cancelSession()
+        isRecording = false
+        isPaused = false
     }
 
 }

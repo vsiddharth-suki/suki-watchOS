@@ -12,6 +12,7 @@ final class SessionStore {
         static let email = "suki.watch.email"
         static let sessionId = "suki.watch.sessionId"
         static let userFirstName = "suki.watch.userFirstName"
+        static let userLastName = "suki.watch.userLastName"
         static let userPrefix = "suki.watch.userPrefix"
     }
 
@@ -65,22 +66,30 @@ final class SessionStore {
         set { UserDefaults.standard.set(newValue, forKey: Keys.userFirstName) }
     }
 
+    var userLastName: String? {
+        get { UserDefaults.standard.string(forKey: Keys.userLastName) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.userLastName) }
+    }
+
     var userPrefix: String? {
         get { UserDefaults.standard.string(forKey: Keys.userPrefix) }
         set { UserDefaults.standard.set(newValue, forKey: Keys.userPrefix) }
     }
 
-    /// Matches iOS `OnboardingWelcomeViewModel.greetingTitle` (`Welcome %@!` with prefix + first name).
-    var welcomeDoctorLabel: String {
+    /// Refetch `/auth/me` when first name is missing or last name was never stored (older app versions).
+    var shouldRefreshWelcomeProfile: Bool {
         let first = userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let name = first.isEmpty ? Self.welcomeDefaultName : first
-        let prefix = userPrefix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let nameWithPrefix = prefix.isEmpty ? name : "\(prefix) \(name)"
-        return String(format: Self.welcomeTitleFormat, nameWithPrefix)
+        if first.isEmpty { return true }
+        return UserDefaults.standard.object(forKey: Keys.userLastName) == nil
     }
 
-    private static let welcomeTitleFormat = "Welcome %@!"
-    private static let welcomeDefaultName = "there"
+    var welcomeDoctorLabel: String {
+        let first = userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let last = userLastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+        guard !name.isEmpty else { return "Welcome" }
+        return "Welcome \(name)"
+    }
 
     init() {
         restoreSessionIfPossible()
@@ -95,10 +104,12 @@ final class SessionStore {
         isAuthenticated = userId != nil && accessToken != nil
     }
 
-    func applyWelcomeProfile(firstName: String?, prefix: String?) {
+    func applyWelcomeProfile(firstName: String?, lastName: String?, prefix: String?) {
         let trimmedFirst = firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let trimmedLast = lastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let trimmedPrefix = prefix?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         userFirstName = trimmedFirst.isEmpty ? nil : trimmedFirst
+        userLastName = trimmedLast
         userPrefix = trimmedPrefix.isEmpty ? nil : trimmedPrefix
     }
 
@@ -109,6 +120,7 @@ final class SessionStore {
         organizationId = nil
         email = nil
         userFirstName = nil
+        userLastName = nil
         userPrefix = nil
         UserDefaults.standard.removeObject(forKey: Keys.sessionId)
         isAuthenticated = false

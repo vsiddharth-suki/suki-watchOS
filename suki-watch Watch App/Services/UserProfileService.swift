@@ -22,6 +22,7 @@ final class UserProfileService {
         let response = try await api.send(descriptor, as: CurrentUserResponse.self)
         sessionStore.applyWelcomeProfile(
             firstName: response.user.person?.firstName,
+            lastName: response.user.person?.lastName,
             prefix: response.user.person?.prefix
         )
     }

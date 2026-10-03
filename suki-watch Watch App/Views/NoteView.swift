@@ -68,6 +68,11 @@ struct NoteView: View {
             .padding(.bottom, 8)
         }
         .navigationTitle(model.patientName ?? "Patient")
+        .overlay {
+            if model.isSubmitting {
+                InProgressOverlay()
+            }
+        }
         .task(id: viewModel.noteId) { await viewModel.load() }
         .alert("Note submitted", isPresented: $model.showSubmittedAlert) {
             Button("OK", role: .cancel) {}

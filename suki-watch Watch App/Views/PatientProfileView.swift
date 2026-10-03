@@ -65,7 +65,9 @@ struct PatientProfileView: View {
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
         .overlay {
-            if viewModel.isLoading && !viewModel.showCreateNoteSheet { ProgressView() }
+            if viewModel.isLoading && !viewModel.showCreateNoteSheet {
+                InProgressOverlay()
+            }
         }
         .sheet(isPresented: $model.showCreateNoteSheet) {
             createNoteSheet
@@ -92,6 +94,11 @@ struct PatientProfileView: View {
             }
         }
         .navigationTitle("New Note")
+        .overlay {
+            if model.isCreatingNote {
+                InProgressOverlay()
+            }
+        }
     }
 
     @ViewBuilder

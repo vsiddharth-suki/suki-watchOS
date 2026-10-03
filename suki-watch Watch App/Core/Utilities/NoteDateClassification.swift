@@ -23,6 +23,18 @@ enum NoteDateClassification {
         return fallback.date(from: iso)
     }
 
+    /// Whether the ISO timestamp falls on today (GMT), matching iOS home recent-notes filtering.
+    static func isToday(iso: String?) -> Bool {
+        guard let date = parseCreatedAt(iso) else { return false }
+        return isTodayGMT(date)
+    }
+
+    static func mostRecentDate(createdAt: String?, updatedAt: String?) -> Date {
+        let created = parseCreatedAt(createdAt) ?? .distantPast
+        let updated = parseCreatedAt(updatedAt) ?? .distantPast
+        return max(created, updated)
+    }
+
     /// Matches iOS patient profile: today, future, or within the prior five calendar days.
     static func isCurrentSectionNote(createdAt: String?) -> Bool {
         guard let date = parseCreatedAt(createdAt) else { return false }
