@@ -97,7 +97,7 @@ struct AmbientFlowView: View {
     @ViewBuilder
     private var noteTypeStep: some View {
         Section {
-            Button("Review note") {
+            Button("Review Note") {
                 viewModel.finishAmbient(action: .reviewNote)
             }
             .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
@@ -108,17 +108,19 @@ struct AmbientFlowView: View {
             .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
         }
 
-        Section("Note type") {
-            if viewModel.isLoading { ProgressView() }
-            ForEach(viewModel.noteTypes) { type in
-                Button {
-                    viewModel.selectedNoteType = type
-                } label: {
-                    HStack {
-                        Text(type.name)
-                            .font(.caption)
-                        if viewModel.selectedNoteType?.id == type.id {
-                            Image(systemName: "checkmark")
+        if !viewModel.isAmbientForExistingNote {
+            Section("Note type") {
+                if viewModel.isLoading { ProgressView() }
+                ForEach(viewModel.noteTypes) { type in
+                    Button {
+                        viewModel.selectedNoteType = type
+                    } label: {
+                        HStack {
+                            Text(type.name)
+                                .font(.caption)
+                            if viewModel.selectedNoteType?.id == type.id {
+                                Image(systemName: "checkmark")
+                            }
                         }
                     }
                 }

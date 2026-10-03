@@ -78,10 +78,14 @@ final class AmbientFlowViewModel {
         }
     }
 
+    var isAmbientForExistingNote: Bool {
+        guard let noteId = launch.noteId else { return false }
+        return !noteId.isEmpty
+    }
+
     func goToPatientStep() {
-        if launch.noteId != nil {
+        if isAmbientForExistingNote {
             step = .noteType
-            Task { await loadNoteTypes() }
             return
         }
         if launch.patientId != nil {

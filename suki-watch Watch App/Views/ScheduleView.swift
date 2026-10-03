@@ -14,11 +14,9 @@ struct ScheduleView: View {
     var body: some View {
         List {
             Section {
-                DatePicker(
-                    "Date",
-                    selection: $viewModel.selectedDate,
-                    in: Self.selectableDateRange,
-                    displayedComponents: .date
+                WatchAlignedDatePicker(
+                    date: $viewModel.selectedDate,
+                    range: Self.selectableDateRange
                 )
                 .onChange(of: viewModel.selectedDate) { _, _ in
                     Task { await viewModel.load(forceEMRRefresh: true) }

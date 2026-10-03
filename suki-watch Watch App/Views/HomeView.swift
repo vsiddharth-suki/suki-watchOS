@@ -23,7 +23,7 @@ struct HomeView: View {
             }
 
             Section {
-                if viewModel.isLoading {
+                if viewModel.isLoadingTodaySchedule {
                     ProgressView()
                 } else if let error = viewModel.errorMessage {
                     Text(error).font(.caption2).foregroundStyle(.red)

@@ -41,7 +41,7 @@ struct PatientProfileView: View {
                 }
             }
 
-            Section("Current notes") {
+            Section("Current Notes") {
                 if model.currentNotes.isEmpty {
                     Text("None").font(.caption).foregroundStyle(.secondary)
                 } else {
@@ -51,7 +51,7 @@ struct PatientProfileView: View {
                 }
             }
 
-            Section("Prior notes") {
+            Section("Prior Notes") {
                 if model.priorNotes.isEmpty {
                     Text("None").font(.caption).foregroundStyle(.secondary)
                 } else {

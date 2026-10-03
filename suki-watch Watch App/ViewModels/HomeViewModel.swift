@@ -7,6 +7,8 @@ final class HomeViewModel {
     var noteStatusByAppointmentId: [String: String] = [:]
     var recentNotes: [HomeRecentNote] = []
     var isLoading = false
+    /// True while today's schedule is loading and there is no cached snapshot yet.
+    var isLoadingTodaySchedule = false
     var isLoadingRecentNotes = false
     var errorMessage: String?
     var recentNotesError: String?
@@ -18,14 +20,16 @@ final class HomeViewModel {
 
     func loadToday() async {
         await refreshWelcomeProfileIfNeeded()
+        let hadScheduleCache = ScheduleAppointmentCache.hasSnapshot(for: Date())
         applyCachedScheduleIfAvailable()
 
-        let showScheduleLoader = appointments.isEmpty
-        isLoading = showScheduleLoader
+        isLoadingTodaySchedule = !hadScheduleCache
+        isLoading = isLoadingTodaySchedule
         isLoadingRecentNotes = true
         errorMessage = nil
         recentNotesError = nil
         defer {
+            isLoadingTodaySchedule = false
             isLoading = false
             isLoadingRecentNotes = false
         }

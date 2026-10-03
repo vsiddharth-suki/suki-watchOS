@@ -39,8 +39,10 @@ struct NoteView: View {
                         }
                     }
 
-                    Button("Start Ambient") {
-                        path.append(.ambient(model.ambientContext))
+                    if !model.isSubmittedNote {
+                        Button("Start Ambient") {
+                            path.append(.ambient(model.ambientContext))
+                        }
                     }
 
                     ForEach($model.sections) { $section in
@@ -75,18 +77,20 @@ struct NoteView: View {
                         .foregroundStyle(.red)
                 }
 
-                Button(model.isSubmitting ? "Sending…" : "Send") {
-                    model.sendNote()
-                }
-                .disabled(model.isSubmitting || model.isSavingSections || model.isLoading || model.isSubmittedNote)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+                if !model.isSubmittedNote {
+                    Button(model.isSubmitting ? "Sending…" : "Send") {
+                        model.sendNote()
+                    }
+                    .disabled(model.isSubmitting || model.isSavingSections || model.isLoading)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
 
-                Button(model.isDeleting ? "Deleting…" : "Delete", role: .destructive) {
-                    showDeleteConfirmation = true
+                    Button(model.isDeleting ? "Deleting…" : "Delete", role: .destructive) {
+                        showDeleteConfirmation = true
+                    }
+                    .disabled(model.isDeleting || model.isLoading)
+                    .frame(maxWidth: .infinity)
                 }
-                .disabled(model.isDeleting || model.isLoading || model.isSubmittedNote)
-                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 6)
             .padding(.bottom, 8)

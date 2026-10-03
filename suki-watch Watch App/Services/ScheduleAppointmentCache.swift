@@ -23,6 +23,10 @@ enum ScheduleAppointmentCache {
         storage[dayKey(for: date)]
     }
 
+    static func hasSnapshot(for date: Date) -> Bool {
+        snapshot(for: date) != nil
+    }
+
     static func store(
         appointments: [Appointment],
         noteStatusByAppointmentId: [String: String],

@@ -19,10 +19,11 @@ final class ScheduleViewModel {
     /// Loads schedule for `selectedDate`. Uses in-memory cache for instant UI when returning from profile.
     func load(forceEMRRefresh: Bool? = nil) async {
         isRefreshing = true
+        let hadCache = ScheduleAppointmentCache.hasSnapshot(for: selectedDate)
         applyCachedSnapshotIfAvailable()
 
         let shouldForceEMR = forceEMRRefresh ?? appointments.isEmpty
-        let showBlockingLoader = appointments.isEmpty
+        let showBlockingLoader = !hadCache
         if showBlockingLoader {
             isLoading = true
         }
