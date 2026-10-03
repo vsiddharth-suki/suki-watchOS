@@ -29,3 +29,22 @@ struct RecordingMicView: View {
         }
     }
 }
+
+struct RecordingPausedView: View {
+    var compact: Bool = false
+
+    private var circleSize: CGFloat { compact ? 28 : 44 }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color.orange.opacity(0.22))
+                .frame(width: circleSize, height: circleSize)
+            Image(systemName: "pause.fill")
+                .font(compact ? .caption2 : .caption)
+                .foregroundStyle(.orange)
+        }
+        .frame(height: 14, alignment: .center)
+        .accessibilityLabel("Paused")
+    }
+}

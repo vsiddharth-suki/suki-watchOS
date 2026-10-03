@@ -106,12 +106,29 @@ struct PatientProfileView: View {
         Button {
             path.append(.note(noteId: note.stableId, patientId: patientId, patientName: patientName))
         } label: {
-            HStack(spacing: 6) {
+            PatientProfileNoteRowView(note: note)
+        }
+    }
+}
+
+private struct PatientProfileNoteRowView: View {
+    let note: NoteListItem
+    private let statusIconColumnWidth: CGFloat = 10
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .center, spacing: 6) {
                 NoteStatusIcon(isSubmitted: note.isSubmitted)
+                    .frame(width: statusIconColumnWidth, alignment: .center)
                 Text(note.title)
                     .font(.caption)
                     .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            Text(note.patientProfileDateLine)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.leading, statusIconColumnWidth + 6)
         }
     }
 }
@@ -120,14 +137,17 @@ private struct NoteStatusIcon: View {
     let isSubmitted: Bool
 
     var body: some View {
-        if isSubmitted {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.green)
-        } else {
-            Image(systemName: "circle.fill")
-                .font(.system(size: 8))
-                .foregroundStyle(.orange)
+        Group {
+            if isSubmitted {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.green)
+            } else {
+                Image(systemName: "circle.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.orange)
+            }
         }
+        .frame(height: 14, alignment: .center)
     }
 }

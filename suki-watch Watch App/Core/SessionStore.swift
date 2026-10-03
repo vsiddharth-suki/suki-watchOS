@@ -87,8 +87,8 @@ final class SessionStore {
         let first = userFirstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let last = userLastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let name = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        guard !name.isEmpty else { return "Welcome" }
-        return "Welcome \(name)"
+        guard !name.isEmpty else { return "Welcome!" }
+        return "Welcome \(name)!"
     }
 
     init() {
@@ -123,6 +123,7 @@ final class SessionStore {
         userLastName = nil
         userPrefix = nil
         UserDefaults.standard.removeObject(forKey: Keys.sessionId)
+        ScheduleAppointmentCache.clearAll()
         isAuthenticated = false
     }
 

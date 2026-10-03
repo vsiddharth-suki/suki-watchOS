@@ -39,6 +39,45 @@ enum DateRangeFormatter {
         return f.string(from: date)
     }
 
+    /// iOS `Date.convertISOtoMonthDayYear` for patient profile note rows.
+    /// iOS `Date.formatRecordingDuration` for ambient recording UI.
+    static func formatRecordingDuration(seconds: Int) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .positional
+        formatter.zeroFormattingBehavior = [.pad]
+        if seconds >= 3600 {
+            formatter.allowedUnits = [.hour, .minute, .second]
+        } else if seconds < 60 {
+            formatter.allowedUnits = [.second]
+            let formattedSeconds = formatter.string(from: TimeInterval(seconds)) ?? "00"
+            return "00:" + formattedSeconds
+        } else {
+            formatter.allowedUnits = [.minute, .second]
+        }
+        return formatter.string(from: TimeInterval(seconds)) ?? "00:00"
+    }
+
+    static func ambientSessionTimestamp(iso: String?) -> String {
+        guard let iso, !iso.isEmpty,
+              let date = NoteDateClassification.parseCreatedAt(iso)
+        else { return "Session" }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    static func monthDayYear(iso: String?) -> String {
+        guard let iso, !iso.isEmpty,
+              let date = NoteDateClassification.parseCreatedAt(iso)
+        else { return "Unavailable" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(abbreviation: "UTC")
+        formatter.dateFormat = "MM/dd/yyyy"
+        return formatter.string(from: date)
+    }
+
     static func noteServiceDateLabel(iso: String?) -> String {
         guard let iso, !iso.isEmpty else { return "—" }
         let parsers: [ISO8601DateFormatter] = {

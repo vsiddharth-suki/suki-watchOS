@@ -41,19 +41,33 @@ struct AmbientFlowView: View {
     private var recordingStep: some View {
         Section {
             if viewModel.isRecording {
-                HStack(alignment: .center, spacing: 8) {
+                HStack(alignment: .center, spacing: 6) {
+                    Group {
+                        if viewModel.isPaused {
+                            Text("Paused")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Recording")
+                        }
+                    }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .allowsTightening(true)
+                    .layoutPriority(1)
+
                     if viewModel.isPaused {
-                        Text("Paused")
-                            .foregroundStyle(.secondary)
-                        Spacer(minLength: 4)
-                        Image(systemName: "pause.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.orange)
+                        RecordingPausedView(compact: true)
                     } else {
-                        Text("Recording…")
-                        Spacer(minLength: 4)
                         RecordingMicView(compact: true)
                     }
+
+                    Spacer(minLength: 0)
+
+                    Text(viewModel.recordingDurationLabel)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(viewModel.isPaused ? .secondary : .primary)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(2)
                 }
 
                 Button(viewModel.isPaused ? "Resume" : "Pause") {

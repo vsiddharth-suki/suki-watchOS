@@ -43,6 +43,7 @@ final class AmbientService: NSObject {
         guard recorder?.isRecording == true else { return }
         recorder?.pause()
         isPaused = true
+        DictationSoundPlayer.playExitDictation()
     }
 
     func resumeRecording() {

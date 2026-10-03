@@ -171,6 +171,38 @@ public enum NoteSubmitGRPCClient {
         }
     }
 
+    /// Persists edited sections with `UPDATE_SECTION` (iOS `sendTypingChanges`). Does not submit to the EMR.
+    public static func persistSectionEdits(
+        payload: NoteSubmitPayload,
+        credentials: NoteSubmitCredentials,
+        host: String = defaultHost,
+        port: Int = defaultPort,
+        timeoutSeconds: UInt64 = 90
+    ) async throws {
+        try validate(credentials)
+        let changed = changedSections(in: payload)
+        guard !changed.isEmpty else { return }
+        _ = try await runAssist(
+            credentials: credentials,
+            host: host,
+            port: port,
+            timeoutSeconds: timeoutSeconds,
+            persistOnly: true
+        ) { stream, queue, _ in
+            sendFetch(payload: payload, credentials: credentials, stream: stream, queue: queue)
+        } onLegacyResponse: { dialog, stream, queue, state, finish in
+            handleNoteSyncDialog(
+                dialog: dialog,
+                payload: payload,
+                credentials: credentials,
+                stream: stream,
+                queue: queue,
+                state: state,
+                finish: finish
+            )
+        }
+    }
+
     public static func submit(
         payload: NoteSubmitPayload,
         credentials: NoteSubmitCredentials,
@@ -185,63 +217,105 @@ public enum NoteSubmitGRPCClient {
             port: port,
             timeoutSeconds: timeoutSeconds
         ) { stream, queue, _ in
-            let uictx = Suki_Pb_S2_UIContext.watchNoteContext(
-                sessionID: credentials.sessionId,
-                organizationID: credentials.organizationId,
-                userID: credentials.userId,
-                compositionID: payload.compositionId,
-                noteTypeID: payload.noteTypeId,
-                patientID: payload.patientId
-            )
-            queue.async {
-                stream.sendMessage(NoteDialogRequests.uiContextRequest(uictx: uictx).asAssistRequest(), promise: nil)
-                stream.sendMessage(
-                    NoteDialogRequests.fetchComposition(
-                        compositionID: payload.compositionId,
-                        organizationID: credentials.organizationId,
-                        asNote: false
-                    ).asAssistRequest(),
-                    promise: nil
-                )
-            }
+            sendFetch(payload: payload, credentials: credentials, stream: stream, queue: queue)
         } onLegacyResponse: { dialog, stream, queue, state, finish in
-            switch dialog.response {
-            case .getCompositionOrNoteResponse(let fetchResponse):
-                handleFetchedCompositionForSubmit(
-                    fetchResponse: fetchResponse,
-                    payload: payload,
-                    credentials: credentials,
-                    stream: stream,
-                    queue: queue,
-                    state: state,
-                    finish: finish
-                )
-            case .serverSubmitCompositionResponse(let submission):
-                switch submission.submitCompositionResponseType {
-                case .error:
-                    finish(.failure(NoteSubmitError.submissionFailed(submission.submitCompositionResponseErrorMessage)))
-                case .success:
-                    let noteID = submission.submitCompositionResponse.noteID
-                    if noteID.isEmpty {
-                        finish(.failure(NoteSubmitError.submissionFailed("Empty note id in submission response.")))
-                    } else {
-                        queue.async {
-                            stream.sendMessage(
-                                NoteDialogRequests.submissionSuccessful(compositionID: payload.compositionId).asAssistRequest(),
-                                promise: nil
-                            )
-                            stream.sendEnd(promise: nil)
-                        }
-                        finish(.success(noteID))
+            handleNoteSyncDialog(
+                dialog: dialog,
+                payload: payload,
+                credentials: credentials,
+                stream: stream,
+                queue: queue,
+                state: state,
+                finish: finish
+            )
+        }
+    }
+
+    private static func handleNoteSyncDialog(
+        dialog: Suki_Pb_S2_DialogResponse,
+        payload: NoteSubmitPayload,
+        credentials: NoteSubmitCredentials,
+        stream: BidirectionalStreamingCall<
+            Suki_Pb_SukiServer_V1_AssistRequest,
+            Suki_Pb_SukiServer_V1_AssistResponse
+        >,
+        queue: DispatchQueue,
+        state: AssistState,
+        finish: @escaping (Result<String, Error>) -> Void
+    ) {
+        switch dialog.response {
+        case .getCompositionOrNoteResponse(let fetchResponse):
+            handleFetchedCompositionForSubmit(
+                fetchResponse: fetchResponse,
+                payload: payload,
+                credentials: credentials,
+                stream: stream,
+                queue: queue,
+                state: state,
+                finish: finish
+            )
+        case .sectionResponse, .sectionContentResponse:
+            acknowledgeSectionUpdate(
+                stream: stream,
+                queue: queue,
+                state: state,
+                finish: finish
+            )
+        case .serverSubmitCompositionResponse(let submission):
+            switch submission.submitCompositionResponseType {
+            case .error:
+                finish(.failure(NoteSubmitError.submissionFailed(submission.submitCompositionResponseErrorMessage)))
+            case .success:
+                let noteID = submission.submitCompositionResponse.noteID
+                if noteID.isEmpty {
+                    finish(.failure(NoteSubmitError.submissionFailed("Empty note id in submission response.")))
+                } else {
+                    queue.async {
+                        stream.sendMessage(
+                            NoteDialogRequests.submissionSuccessful(compositionID: payload.compositionId).asAssistRequest(),
+                            promise: nil
+                        )
+                        stream.sendEnd(promise: nil)
                     }
-                default:
-                    finish(.failure(NoteSubmitError.submissionFailed("Unexpected submission response.")))
+                    finish(.success(noteID))
                 }
-            case .error(let error):
-                finish(.failure(NoteSubmitError.submissionFailed(error.reason)))
             default:
-                break
+                finish(.failure(NoteSubmitError.submissionFailed("Unexpected submission response.")))
             }
+        case .error(let error):
+            finish(.failure(NoteSubmitError.submissionFailed(error.reason)))
+        default:
+            break
+        }
+    }
+
+    private static func sendFetch(
+        payload: NoteSubmitPayload,
+        credentials: NoteSubmitCredentials,
+        stream: BidirectionalStreamingCall<
+            Suki_Pb_SukiServer_V1_AssistRequest,
+            Suki_Pb_SukiServer_V1_AssistResponse
+        >,
+        queue: DispatchQueue
+    ) {
+        let uictx = Suki_Pb_S2_UIContext.watchNoteContext(
+            sessionID: credentials.sessionId,
+            organizationID: credentials.organizationId,
+            userID: credentials.userId,
+            compositionID: payload.compositionId,
+            noteTypeID: payload.noteTypeId,
+            patientID: payload.patientId
+        )
+        queue.async {
+            stream.sendMessage(NoteDialogRequests.uiContextRequest(uictx: uictx).asAssistRequest(), promise: nil)
+            stream.sendMessage(
+                NoteDialogRequests.fetchComposition(
+                    compositionID: payload.compositionId,
+                    organizationID: credentials.organizationId,
+                    asNote: false
+                ).asAssistRequest(),
+                promise: nil
+            )
         }
     }
 
@@ -249,6 +323,17 @@ public enum NoteSubmitGRPCClient {
         var didPrepareSubmit = false
         var triedNoteFetch = false
         var createdCompositionID: String?
+        var persistOnly = false
+        var noteTypeID = ""
+        var sectionUpdates: [Learningmotors_Pb_Composer_SectionS2] = []
+        var sectionUpdateCursor = 0
+        var awaitingSectionAck = false
+        var didContinueAfterSectionUpdates = false
+        var composition = Learningmotors_Pb_Composer_Composition()
+        var organizationID = ""
+        var sessionID = ""
+        var userID = ""
+        var patientID = ""
     }
 
     private static func handleFetchedCompositionForSubmit(
@@ -291,56 +376,152 @@ public enum NoteSubmitGRPCClient {
         state.didPrepareSubmit = true
 
         let noteTypeID = composition.metadata.notetypeID.isEmpty ? payload.noteTypeId : composition.metadata.notetypeID
-        // Sending UPDATE_SECTION with only id/name (or plain_text and no content_s2)
-        // replaces the stored section and drops structured content. EMR then rejects
-        // the note as an empty composition. Only persist sections the user edited.
-        let sectionUpdates = payload.sections.filter { section in
-            guard !section.id.isEmpty, section.id != "default-section" else { return false }
-            let current = section.plainText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let loaded = section.loadedPlainText.trimmingCharacters(in: .whitespacesAndNewlines)
-            return !current.isEmpty && current != loaded
-        }
+        state.composition = composition
+        state.noteTypeID = noteTypeID
+        state.organizationID = credentials.organizationId
+        state.sessionID = credentials.sessionId
+        state.userID = credentials.userId
+        state.patientID = composition.metadata.patient.id.isEmpty ? payload.patientId : composition.metadata.patient.id
+        state.sectionUpdates = sectionUpdates(from: composition, payload: payload)
+        state.sectionUpdateCursor = 0
+        sendNextSectionUpdate(stream: stream, queue: queue, state: state, finish: finish)
+    }
 
-        let requests: [Suki_Pb_S2_DialogRequest] = {
-            var messages: [Suki_Pb_S2_DialogRequest] = []
-            for section in sectionUpdates {
-                var protoSection = Learningmotors_Pb_Composer_SectionS2()
-                protoSection.id = section.id
-                protoSection.name = section.name
-                protoSection.plainText = section.plainText
-                messages.append(
-                    NoteDialogRequests.sectionTypedChanges(
-                        section: protoSection,
-                        compositionID: composition.id,
-                        noteTypeID: noteTypeID
-                    )
-                )
+    /// iOS `shipTypedUpdates` / `sendTypingChanges`: copy the server section, then replace
+    /// `plainText` and `contentS2` (TYPED_DOCTOR) with `updateType = WHOLE`.
+    private static func sectionUpdates(
+        from composition: Learningmotors_Pb_Composer_Composition,
+        payload: NoteSubmitPayload
+    ) -> [Learningmotors_Pb_Composer_SectionS2] {
+        let existingByID = Dictionary(uniqueKeysWithValues: composition.sectionsS2.map { ($0.id, $0) })
+        return changedSections(in: payload).map { edit in
+            let existing = existingByID[edit.id]
+            var section = existing ?? Learningmotors_Pb_Composer_SectionS2()
+            section.id = edit.id
+            if !edit.name.isEmpty {
+                section.name = edit.name
             }
-            messages.append(NoteDialogRequests.initialNoteSubmission(composition: composition))
-            messages.append(
-                NoteDialogRequests.uiContextRequest(
-                    uictx: Suki_Pb_S2_UIContext.watchNoteContext(
-                        sessionID: credentials.sessionId,
-                        organizationID: credentials.organizationId,
-                        userID: credentials.userId,
-                        compositionID: composition.id,
-                        noteTypeID: noteTypeID,
-                        patientID: composition.metadata.patient.id.isEmpty ? payload.patientId : composition.metadata.patient.id,
-                        view: .submissionPanel
-                    )
-                )
-            )
-            messages.append(
-                NoteDialogRequests.submitCompositionFinal(
-                    composition: composition,
-                    organizationID: credentials.organizationId,
-                    bypassQA: true,
-                    tryAllDestinations: NoteDialogRequests.tryAllDestinations(for: composition)
-                )
-            )
-            return messages
-        }()
+            section.plainText = edit.plainText
+            section.contentS2 = typedDoctorContent(edit.plainText)
+            section.updateType = .whole
+            section.status = .userEdits
+            section.cursorPosition = Int32(edit.plainText.count)
+            section.cursorEndIndex = section.cursorPosition
+            if existing == nil {
+                section.sectionIndex = Int32((existingByID.count) + 1)
+            }
+            return section
+        }
+    }
 
+    private static func changedSections(in payload: NoteSubmitPayload) -> [NoteSubmitSection] {
+        payload.sections.filter { section in
+            guard !section.id.isEmpty, section.id != "default-section" else { return false }
+            return section.plainText != section.loadedPlainText
+        }
+    }
+
+    /// One `Content` block, matching iOS `TypingComposer.createDoctorTypedNode` for a full replace.
+    private static func typedDoctorContent(_ text: String) -> SectionContent {
+        var content = SectionContent()
+        content.totalString = text
+        content.totalStringLength = Int32(text.count)
+        guard !text.isEmpty else {
+            content.numberOfStrings = 0
+            return content
+        }
+        var block = Content()
+        block.id = 1
+        block.string = text
+        block.source = .typedDoctor
+        block.startOffset = 0
+        block.lengthOfString = Int32(text.count)
+        block.endOffset = max(0, Int32(text.count) - 1)
+        content.numberOfStrings = 1
+        content.content = [block]
+        return content
+    }
+
+    private static func sendNextSectionUpdate(
+        stream: BidirectionalStreamingCall<
+            Suki_Pb_SukiServer_V1_AssistRequest,
+            Suki_Pb_SukiServer_V1_AssistResponse
+        >,
+        queue: DispatchQueue,
+        state: AssistState,
+        finish: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard state.sectionUpdateCursor < state.sectionUpdates.count else {
+            continueAfterSectionUpdates(stream: stream, queue: queue, state: state, finish: finish)
+            return
+        }
+        let section = state.sectionUpdates[state.sectionUpdateCursor]
+        state.awaitingSectionAck = true
+        queue.async {
+            stream.sendMessage(
+                NoteDialogRequests.sectionTypedChanges(
+                    section: section,
+                    compositionID: state.composition.id,
+                    noteTypeID: state.noteTypeID
+                ).asAssistRequest(),
+                promise: nil
+            )
+        }
+    }
+
+    private static func acknowledgeSectionUpdate(
+        stream: BidirectionalStreamingCall<
+            Suki_Pb_SukiServer_V1_AssistRequest,
+            Suki_Pb_SukiServer_V1_AssistResponse
+        >,
+        queue: DispatchQueue,
+        state: AssistState,
+        finish: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard state.awaitingSectionAck, !state.didContinueAfterSectionUpdates else { return }
+        state.awaitingSectionAck = false
+        state.sectionUpdateCursor += 1
+        sendNextSectionUpdate(stream: stream, queue: queue, state: state, finish: finish)
+    }
+
+    private static func continueAfterSectionUpdates(
+        stream: BidirectionalStreamingCall<
+            Suki_Pb_SukiServer_V1_AssistRequest,
+            Suki_Pb_SukiServer_V1_AssistResponse
+        >,
+        queue: DispatchQueue,
+        state: AssistState,
+        finish: @escaping (Result<String, Error>) -> Void
+    ) {
+        guard !state.didContinueAfterSectionUpdates else { return }
+        state.didContinueAfterSectionUpdates = true
+        if state.persistOnly {
+            queue.async {
+                stream.sendEnd(promise: nil)
+            }
+            finish(.success(state.composition.id))
+            return
+        }
+        let requests = [
+            NoteDialogRequests.initialNoteSubmission(composition: state.composition),
+            NoteDialogRequests.uiContextRequest(
+                uictx: Suki_Pb_S2_UIContext.watchNoteContext(
+                    sessionID: state.sessionID,
+                    organizationID: state.organizationID,
+                    userID: state.userID,
+                    compositionID: state.composition.id,
+                    noteTypeID: state.noteTypeID,
+                    patientID: state.patientID,
+                    view: .submissionPanel
+                )
+            ),
+            NoteDialogRequests.submitCompositionFinal(
+                composition: state.composition,
+                organizationID: state.organizationID,
+                bypassQA: true,
+                tryAllDestinations: NoteDialogRequests.tryAllDestinations(for: state.composition)
+            )
+        ]
         sendSequentially(requests, stream: stream, queue: queue, intervalMs: 120)
     }
 
@@ -378,6 +559,7 @@ public enum NoteSubmitGRPCClient {
         host: String,
         port: Int,
         timeoutSeconds: UInt64,
+        persistOnly: Bool = false,
         onStreamReady: @escaping (
             BidirectionalStreamingCall<Suki_Pb_SukiServer_V1_AssistRequest, Suki_Pb_SukiServer_V1_AssistResponse>,
             DispatchQueue,
@@ -399,6 +581,7 @@ public enum NoteSubmitGRPCClient {
 
             let requestQueue = DispatchQueue(label: "com.suki.watch.grpc.assist")
             let state = AssistState()
+            state.persistOnly = persistOnly
             var finished = false
             var timeoutWorkItem: DispatchWorkItem?
 

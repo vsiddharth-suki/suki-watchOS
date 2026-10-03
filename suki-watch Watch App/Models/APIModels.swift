@@ -38,6 +38,36 @@ struct Appointment: Codable, Identifiable, Hashable {
     }
 }
 
+/// `GET /notes/status` for schedule / patient list (iOS `NoteStatusMap`).
+struct NoteStatusMapResponse: Codable {
+    var noteStatusMap: [String: String?]
+
+    enum CodingKeys: String, CodingKey {
+        case noteStatusMap = "noteStatusesMap"
+    }
+}
+
+enum AppointmentNoteStatusPresentation {
+    case loading
+    case hidden
+    case incomplete
+    case submitted
+
+    /// Maps REST note status strings for schedule rows (iOS `Constants.NOTESTATUS`).
+    static func from(raw: String?) -> AppointmentNoteStatusPresentation {
+        guard let raw, !raw.isEmpty else { return .hidden }
+        if raw == "LOADING" { return .loading }
+        let normalized = raw.uppercased()
+        if normalized == "INCOMPLETE" || normalized == "AMBIENT_IN_PROGRESS" {
+            return .incomplete
+        }
+        if NoteListItem.isSubmittedStatus(normalized) {
+            return .submitted
+        }
+        return .hidden
+    }
+}
+
 struct PatientSummary: Codable, Hashable, Identifiable {
     var id: String
     var mrn: String?
@@ -158,6 +188,67 @@ struct AmbientSessionPatient: Decodable, Identifiable {
     }
 }
 
+// MARK: - Ambient transcripts (iOS ViewTranscripts / AmbientViewTranscript)
+
+struct AmbientNoteSessionsResponse: Decodable {
+    var sessions: [AmbientNoteSession]?
+}
+
+struct AmbientNoteSession: Decodable, Identifiable {
+    var noteId: String?
+    var ambientSessionId: String?
+    var startTime: String?
+    var transcriptStatus: AmbientTranscriptStatus?
+    private var totalDurationRaw: String?
+
+    var id: String { ambientSessionId ?? noteId ?? UUID().uuidString }
+
+    var totalDurationSeconds: Int {
+        Int(totalDurationRaw ?? "0") ?? 0
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case noteId = "note_id"
+        case ambientSessionId = "ambient_session_id"
+        case startTime = "start_time"
+        case transcriptStatus = "transcript_status"
+        case totalDurationRaw = "total_duration"
+    }
+}
+
+enum AmbientTranscriptStatus: String, Decodable {
+    case available = "AVAILABLE"
+    case unavailable = "UNAVAILABLE"
+    case expired = "EXPIRED"
+}
+
+struct AmbientSessionTranscriptResponse: Decodable {
+    var transcriptResults: [AmbientTranscriptResult]
+
+    enum CodingKeys: String, CodingKey {
+        case transcriptResults = "transcript_results"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        transcriptResults = try container.decodeIfPresent([AmbientTranscriptResult].self, forKey: .transcriptResults) ?? []
+    }
+}
+
+struct AmbientTranscriptResult: Decodable {
+    var startTime: String
+    var transcripts: [AmbientTranscriptEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case startTime = "start_time"
+        case transcripts
+    }
+}
+
+struct AmbientTranscriptEntry: Decodable {
+    var text: String
+}
+
 struct HomeRecentNote: Identifiable, Hashable {
     var id: String
     var noteId: String?
@@ -242,6 +333,17 @@ struct NoteListItem: Codable, Identifiable, Hashable {
         if let createdAt, !createdAt.isEmpty { return createdAt }
         if let compositionCreatedAt, !compositionCreatedAt.isEmpty { return compositionCreatedAt }
         return nil
+    }
+
+    /// iOS `PriorNoteTableViewCell.setTimeOfAppointmentOrDateLogic` (default: appointment DOS, else composition created).
+    var patientProfileDateLine: String {
+        if let appointmentStart = metadata?.appointment?.startsAt, !appointmentStart.isEmpty {
+            return DateRangeFormatter.monthDayYear(iso: appointmentStart)
+        }
+        if let created = compositionCreatedDateString, !created.isEmpty {
+            return "created \(DateRangeFormatter.monthDayYear(iso: created))"
+        }
+        return "Unavailable"
     }
 
     var sortDate: Date? {

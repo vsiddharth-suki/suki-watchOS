@@ -6,6 +6,7 @@ enum AppRoute: Hashable {
     case search
     case patientProfile(patientId: String, patientName: String, appointmentId: String?)
     case note(noteId: String, patientId: String?, patientName: String?)
+    case ambientTranscripts(noteIds: [String], patientName: String?)
     case ambient(AmbientLaunchContext)
 }
 

@@ -21,15 +21,15 @@ struct ScheduleView: View {
                     displayedComponents: .date
                 )
                 .onChange(of: viewModel.selectedDate) { _, _ in
-                    Task { await viewModel.load() }
+                    Task { await viewModel.load(forceEMRRefresh: true) }
                 }
 
                 Button {
-                    Task { await viewModel.load() }
+                    Task { await viewModel.load(forceEMRRefresh: true) }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(viewModel.isLoading)
+                .disabled(viewModel.isRefreshing || !viewModel.hasCompletedInitialLoad)
             }
 
             if viewModel.isLoading {
@@ -50,12 +50,10 @@ struct ScheduleView: View {
                             appointmentId: appointment.id
                         ))
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appointment.patient?.displayName ?? "Patient")
-                            Text(DateRangeFormatter.appointmentTimeLabel(iso: appointment.startsAt))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+                        ScheduleAppointmentRowView(
+                            appointment: appointment,
+                            noteStatus: viewModel.noteStatus(for: appointment.id)
+                        )
                     }
                 }
             }

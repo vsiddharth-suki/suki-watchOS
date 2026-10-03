@@ -54,6 +54,16 @@
 		EBBABD09306FC27A00D6D06A /* suki-watch Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "suki-watch Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EBBEXT01306FC27A00D6D06A /* Exceptions for "suki-watch Watch App" folder in "suki-watch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"WatchApp-Info.plist",
+			);
+			target = EBBABCEF306FC27700D6D06A /* suki-watch Watch App */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EBBABCF4306FC27700D6D06A /* suki-watch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -73,17 +83,6 @@
 			path = "suki-watch Watch AppUITests";
 			sourceTree = "<group>";
 		};
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		EBBEXT01306FC27A00D6D06A /* Exceptions for "suki-watch Watch App" folder in "suki-watch Watch App" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				WatchApp-Info.plist,
-				"suki-watch Watch App.entitlements",
-			);
-			target = EBBABCEF306FC27700D6D06A /* suki-watch Watch App */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */

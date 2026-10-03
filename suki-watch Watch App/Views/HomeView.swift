@@ -27,22 +27,19 @@ struct HomeView: View {
                     ProgressView()
                 } else if let error = viewModel.errorMessage {
                     Text(error).font(.caption2).foregroundStyle(.red)
-                } else if viewModel.appointments.isEmpty {
+                } else if viewModel.homeScheduleAppointments.isEmpty {
                     Text("No appointments today")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(viewModel.appointments, id: \.id) { appointment in
+                    ForEach(viewModel.homeScheduleAppointments, id: \.id) { appointment in
                         Button {
                             openPatient(from: appointment)
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appointment.patient?.displayName ?? "Patient")
-                                    .font(.caption)
-                                Text(DateRangeFormatter.appointmentTimeLabel(iso: appointment.startsAt))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
+                            ScheduleAppointmentRowView(
+                                appointment: appointment,
+                                noteStatus: viewModel.noteStatus(for: appointment.id)
+                            )
                         }
                     }
                 }
@@ -54,7 +51,7 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             } header: {
-                Text("Today's schedule")
+                Text("Today's Schedule")
             }
 
             Section {
@@ -81,7 +78,7 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             } header: {
-                Text("Recent notes")
+                Text("Recent Notes")
             }
 
             Section {
@@ -95,7 +92,7 @@ struct HomeView: View {
                     )))
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Start a visit")
+                        Text("Start a Visit")
                             .font(.caption)
                         Text("Start ambient and add patient details later.")
                             .font(.caption2)

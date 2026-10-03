@@ -21,6 +21,11 @@ final class AmbientFlowViewModel {
     var step: AmbientStep = .recording
     var isRecording = false
     var isPaused = false
+    var recordingElapsedSeconds = 0
+
+    var recordingDurationLabel: String {
+        DateRangeFormatter.formatRecordingDuration(seconds: recordingElapsedSeconds)
+    }
     var selectedPatient: PatientSearchResult?
     var noteTypes: [NoteTypeItem] = []
     var selectedNoteType: NoteTypeItem?
@@ -33,6 +38,8 @@ final class AmbientFlowViewModel {
     private let patientService = PatientService()
     var searchQuery = ""
     var searchResults: [PatientSearchResult] = []
+
+    private var recordingTimer: Timer?
 
     init(launch: AmbientLaunchContext) {
         self.launch = launch
@@ -47,6 +54,8 @@ final class AmbientFlowViewModel {
             try ambientService.beginSession()
             isRecording = true
             isPaused = false
+            recordingElapsedSeconds = 0
+            startRecordingTimer()
             if launch.startWithoutPatient {
                 step = .recording
             } else if launch.noteId != nil {
@@ -61,9 +70,11 @@ final class AmbientFlowViewModel {
         if isPaused {
             ambientService.resumeRecording()
             isPaused = false
+            startRecordingTimer()
         } else {
             ambientService.pauseRecording()
             isPaused = true
+            stopRecordingTimer()
         }
     }
 
@@ -119,6 +130,7 @@ final class AmbientFlowViewModel {
         isLoading = true
         errorMessage = nil
         completionMessage = nil
+        stopRecordingTimer()
         ambientService.stopRecording()
         isRecording = false
         isPaused = false
@@ -172,9 +184,25 @@ final class AmbientFlowViewModel {
     }
 
     private func abortSessionIfActive() {
+        stopRecordingTimer()
         ambientService.cancelSession()
         isRecording = false
         isPaused = false
+        recordingElapsedSeconds = 0
+    }
+
+    private func startRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.recordingElapsedSeconds += 1
+            }
+        }
+    }
+
+    private func stopRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
     }
 
 }

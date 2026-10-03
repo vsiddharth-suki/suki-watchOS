@@ -22,9 +22,22 @@ struct NoteView: View {
                         .font(.caption2)
                         .foregroundStyle(.red)
                 } else {
-                    Text(model.noteTitle)
-                        .font(.headline)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(model.noteTitle)
+                            .font(.headline)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if model.showAmbientTranscriptButton {
+                            Button {
+                                path.append(.ambientTranscripts(noteIds: viewModel.ambientTranscriptNoteIds, patientName: viewModel.patientName))
+                            } label: {
+                                Image(systemName: "note.text")
+                                    .font(.body)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Ambient Transcript")
+                        }
+                    }
 
                     Button("Start Ambient") {
                         path.append(.ambient(model.ambientContext))
@@ -35,11 +48,22 @@ struct NoteView: View {
                             Text(section.name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            NoteSectionEditor(text: $section.text, sectionName: section.name)
+                            NoteSectionEditor(
+                                text: $section.text,
+                                sectionName: section.name,
+                                isEditable: !model.isSubmittedNote
+                            ) {
+                                Task { await viewModel.persistSectionEdits() }
+                            }
                         }
                     }
                 }
 
+                if let saveError = model.sectionSaveErrorMessage {
+                    Text(saveError)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                }
                 if let submitError = model.submitErrorMessage {
                     Text(submitError)
                         .font(.caption2)
@@ -54,11 +78,11 @@ struct NoteView: View {
                 Button(model.isSubmitting ? "Sending…" : "Send") {
                     model.sendNote()
                 }
-                .disabled(model.isSubmitting || model.isLoading || model.isSubmittedNote)
+                .disabled(model.isSubmitting || model.isSavingSections || model.isLoading || model.isSubmittedNote)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 4)
 
-                Button(model.isDeleting ? "Deleting…" : "Delete Note", role: .destructive) {
+                Button(model.isDeleting ? "Deleting…" : "Delete", role: .destructive) {
                     showDeleteConfirmation = true
                 }
                 .disabled(model.isDeleting || model.isLoading || model.isSubmittedNote)
@@ -74,6 +98,10 @@ struct NoteView: View {
             }
         }
         .task(id: viewModel.noteId) { await viewModel.load() }
+        .onDisappear {
+            guard !viewModel.isSubmittedNote else { return }
+            Task { await viewModel.persistSectionEdits() }
+        }
         .alert("Note submitted", isPresented: $model.showSubmittedAlert) {
             Button("OK", role: .cancel) {}
         } message: {

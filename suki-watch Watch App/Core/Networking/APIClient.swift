@@ -26,6 +26,8 @@ struct APIRequestDescriptor {
     let path: String
     let method: String
     var query: [String: String] = [:]
+    /// When set, used instead of `query` (e.g. repeated `note_ids`).
+    var queryItems: [URLQueryItem]?
     var body: Data?
 }
 
@@ -79,7 +81,9 @@ final class APIClient {
         components.scheme = APIConfiguration.scheme
         components.host = host
         components.path = descriptor.path
-        if !descriptor.query.isEmpty {
+        if let queryItems = descriptor.queryItems {
+            components.queryItems = queryItems
+        } else if !descriptor.query.isEmpty {
             components.queryItems = descriptor.query.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
         guard let url = components.url else { throw APIError.invalidURL }

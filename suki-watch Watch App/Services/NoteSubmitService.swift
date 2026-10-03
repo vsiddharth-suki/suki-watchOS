@@ -20,6 +20,16 @@ final class NoteSubmitService {
         )
     }
 
+    func persistSectionEdits(payload: NoteSubmitPayload, session: SessionStore) async throws {
+        let credentials = try credentials(from: session)
+        try await NoteSubmitGRPCClient.persistSectionEdits(
+            payload: payload,
+            credentials: credentials,
+            host: GRPCConfiguration.host,
+            port: GRPCConfiguration.port
+        )
+    }
+
     func submit(payload: NoteSubmitPayload, session: SessionStore) async throws {
         let credentials = try credentials(from: session)
         _ = try await NoteSubmitGRPCClient.submit(

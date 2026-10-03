@@ -37,6 +37,8 @@ struct RootView: View {
             PatientProfileView(path: $path, patientId: patientId, patientName: patientName, appointmentId: appointmentId)
         case let .note(noteId, patientId, patientName):
             NoteView(path: $path, noteId: noteId, patientId: patientId, patientName: patientName)
+        case let .ambientTranscripts(noteIds, patientName):
+            AmbientTranscriptView(noteIds: noteIds, patientName: patientName)
         case let .ambient(context):
             AmbientFlowView(launch: context)
         }
