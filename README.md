@@ -1,4 +1,4 @@
-# watchOS App
+# Suki watchOS App
 
 ## Getting Started
 
