@@ -20,7 +20,7 @@ struct PatientProfileView: View {
         @Bindable var model = viewModel
         List {
             Section {
-                Button("Start Ambient") {
+                Button {
                     path.append(.ambient(AmbientLaunchContext(
                         patientId: patientId,
                         patientName: patientName,
@@ -28,9 +28,15 @@ struct PatientProfileView: View {
                         noteId: nil,
                         startWithoutPatient: false
                     )))
+                } label: {
+                    Text("Start Ambient")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                Button(model.isCreatingNote ? "Creating…" : "New Note") {
+                Button {
                     Task { await model.prepareCreateNote() }
+                } label: {
+                    Text(model.isCreatingNote ? "Creating…" : "New Note")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .disabled(model.isCreatingNote)
             }

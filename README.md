@@ -4,10 +4,10 @@
 
 ### Prerequisites
 
-Make sure the following are installed:
+Ensure the following are installed:
 
-* **Xcode 27**
-* **watchOS 27**
+* **Xcode 26+**
+* **watchOS 26+**
 
 No separate dependency installation step is required. All package dependencies are already included in the repository.
 
@@ -16,15 +16,15 @@ No separate dependency installation step is required. All package dependencies a
 Clone the repository and switch to the default `main` branch:
 
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/vsiddharth-suki/suki-watchOS.git
+cd suki-watchOS
 git checkout main
 ```
 
 ### Run the App
 
-1. Open the project in **Xcode 27**.
-2. Select a **watchOS 27** simulator or a compatible Apple Watch device.
+1. Open the project in **Xcode**.
+2. Select a compatible **watchOS** simulator or an Apple Watch device.
 3. Select the watchOS app target/scheme.
 4. Build and run the app.
 

@@ -74,7 +74,7 @@ struct AmbientFlowView: View {
                     viewModel.togglePause()
                 }
             }
-            Button("Next") {
+            Button("Submit") {
                 viewModel.goToPatientStep()
             }
         }
