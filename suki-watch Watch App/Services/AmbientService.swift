@@ -39,11 +39,13 @@ final class AmbientService: NSObject {
         recorder?.record()
     }
 
-    func pauseRecording() {
+    func pauseRecording(playExitSound: Bool = true) {
         guard recorder?.isRecording == true else { return }
         recorder?.pause()
         isPaused = true
-        DictationSoundPlayer.playExitDictation()
+        if playExitSound {
+            DictationSoundPlayer.playExitDictation()
+        }
     }
 
     func resumeRecording() {

@@ -50,6 +50,7 @@ final class AmbientFlowViewModel {
 
     func start() async {
         errorMessage = nil
+        await RecordingPauseNotificationService.ensureAuthorization()
         do {
             try ambientService.beginSession()
             isRecording = true
@@ -68,6 +69,7 @@ final class AmbientFlowViewModel {
 
     func togglePause() {
         if isPaused {
+            RecordingPauseNotificationService.clearRecordingPausedNotification()
             ambientService.resumeRecording()
             isPaused = false
             startRecordingTimer()
@@ -76,6 +78,15 @@ final class AmbientFlowViewModel {
             isPaused = true
             stopRecordingTimer()
         }
+    }
+
+    /// Pause when the watch locks or the app leaves the foreground (e.g. Digital Crown).
+    func pauseForSystemInterruption() {
+        guard step == .recording, isRecording, !isPaused else { return }
+        ambientService.pauseRecording()
+        isPaused = true
+        stopRecordingTimer()
+        Task { await RecordingPauseNotificationService.notifyRecordingPaused() }
     }
 
     var isAmbientForExistingNote: Bool {
@@ -188,6 +199,7 @@ final class AmbientFlowViewModel {
     }
 
     private func abortSessionIfActive() {
+        RecordingPauseNotificationService.clearRecordingPausedNotification()
         stopRecordingTimer()
         ambientService.cancelSession()
         isRecording = false

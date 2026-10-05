@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AmbientFlowView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     let launch: AmbientLaunchContext
 
     @State private var viewModel: AmbientFlowViewModel
@@ -32,6 +33,11 @@ struct AmbientFlowView: View {
         }
         .navigationTitle("Ambient")
         .task { await viewModel.start() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .inactive || newPhase == .background {
+                viewModel.pauseForSystemInterruption()
+            }
+        }
         .onDisappear {
             viewModel.handleNavigationAway()
         }
