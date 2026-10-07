@@ -1,3 +1,5 @@
+![Suki for Clinicians — AI-powered clinical assistant for watchOS](docs/suki-for-clinicians-banner.jpg)
+
 # Suki watchOS App
 
 ## Getting Started
