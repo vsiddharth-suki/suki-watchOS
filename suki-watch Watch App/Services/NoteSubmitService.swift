@@ -16,7 +16,8 @@ final class NoteSubmitService {
             accessToken: access,
             userId: userId,
             organizationId: organizationId,
-            sessionId: session.sessionId
+            sessionId: session.sessionId,
+            isEMRUser: session.belongsToEMR
         )
     }
 

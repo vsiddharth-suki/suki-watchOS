@@ -39,9 +39,11 @@ final class ScheduleService {
         return response.appointments
     }
 
-    func loadSchedule(for date: Date, forceEMRRefresh: Bool) async throws -> [Appointment] {
+    func loadSchedule(for date: Date, forceEMRRefresh: Bool, belongsToEMR: Bool = SessionStore.shared.belongsToEMR) async throws -> [Appointment] {
         let range = DateRangeFormatter.dayRange(for: date)
-        try await refreshEMRAppointments(from: range.start, to: range.end, forceRefresh: forceEMRRefresh)
+        if belongsToEMR {
+            try await refreshEMRAppointments(from: range.start, to: range.end, forceRefresh: forceEMRRefresh)
+        }
         return try await fetchAppointments(from: range.start, to: range.end)
     }
 

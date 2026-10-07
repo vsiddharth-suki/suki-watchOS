@@ -14,6 +14,7 @@ final class SessionStore {
         static let userFirstName = "suki.watch.userFirstName"
         static let userLastName = "suki.watch.userLastName"
         static let userPrefix = "suki.watch.userPrefix"
+        static let belongsToEMR = "suki.watch.belongsToEMR"
     }
 
     /// Drives login vs home UI; updated explicitly so SwiftUI observes auth changes.
@@ -60,6 +61,27 @@ final class SessionStore {
     }
 
     var isLoggedIn: Bool { isAuthenticated }
+
+    /// iOS `SessionManager.belongsToEMR` — `false` for non-integrated (non-EMR) orgs.
+    var belongsToEMR: Bool {
+        get { UserDefaults.standard.bool(forKey: Keys.belongsToEMR) }
+        set { UserDefaults.standard.set(newValue, forKey: Keys.belongsToEMR) }
+    }
+
+    /// Loads org EMR linkage before schedule fetches (avoids integrated-only refresh on first paint).
+    func refreshEMRMembership() async {
+        guard let organizationId, !organizationId.isEmpty else {
+            belongsToEMR = true
+            return
+        }
+        let service = OrganizationService()
+        do {
+            belongsToEMR = try await service.fetchBelongsToEMR(organizationId: organizationId)
+        } catch {
+            // Prefer non-integrated schedule path when unknown — skips EMR refresh that 500s without an EMR user.
+            belongsToEMR = false
+        }
+    }
 
     var userFirstName: String? {
         get { UserDefaults.standard.string(forKey: Keys.userFirstName) }
@@ -122,6 +144,7 @@ final class SessionStore {
         userFirstName = nil
         userLastName = nil
         userPrefix = nil
+        UserDefaults.standard.removeObject(forKey: Keys.belongsToEMR)
         UserDefaults.standard.removeObject(forKey: Keys.sessionId)
         ScheduleAppointmentCache.clearAll()
         isAuthenticated = false

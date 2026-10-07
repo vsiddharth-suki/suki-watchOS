@@ -41,6 +41,24 @@ final class NoteViewModel {
         return "Uploading"
     }
 
+    var submitButtonTitle: String {
+        session.belongsToEMR ? "Send" : "Done"
+    }
+
+    var submitButtonLoadingTitle: String {
+        session.belongsToEMR ? "Sending…" : "Saving…"
+    }
+
+    var submittedAlertTitle: String {
+        session.belongsToEMR ? "Note submitted" : "Note completed"
+    }
+
+    var submittedAlertMessage: String {
+        session.belongsToEMR
+            ? "Your note was submitted successfully."
+            : "Your note was completed successfully."
+    }
+
     private let noteService = NoteService()
     private let transcriptService = AmbientTranscriptService()
     private let submitService = NoteSubmitService()
@@ -61,6 +79,8 @@ final class NoteViewModel {
     private var generatingPollTimer: Timer?
     private var isPollingGenerating = false
     private var isFinishingGenerating = false
+    /// True once the server has reported this ambient session as in progress.
+    private var sawAmbientInProgress = false
 
     init(noteId: String, patientId: String?, patientName: String?) {
         self.noteId = noteId
@@ -77,6 +97,17 @@ final class NoteViewModel {
     func resumeGeneratingIfNeeded() {
         guard isGenerating else { return }
         beginGenerating()
+    }
+
+    /// Called when the note screen becomes visible again (for example, back from ambient during upload).
+    func handleAppear() {
+        guard didLoadContent else { return }
+        if AmbientSessionCompletion.shared.expectsGeneration(anyOf: sessionNoteIds) {
+            beginGenerating()
+        } else {
+            resumeGeneratingIfNeeded()
+        }
+        Task { await refreshAmbientTranscriptAvailability() }
     }
 
     /// Invalidates generating timers without clearing `isGenerating` (used on disappear).
@@ -129,11 +160,12 @@ final class NoteViewModel {
 
     func refreshAmbientTranscriptAvailability() async {
         let noteIds = sessionNoteIds
+        let epochAtStart = AmbientSessionCompletion.shared.uploadEpoch(for: noteIds)
         do {
             let sessions = try await transcriptService.fetchSessions(forNoteIds: noteIds)
             ambientTranscriptNoteIds = noteIds
             showAmbientTranscriptButton = !sessions.isEmpty
-            if sessions.hasAmbientSessionInProgress {
+            if shouldKeepGenerating(sessions: sessions, epochAtStart: epochAtStart) {
                 beginGenerating()
             } else if isGenerating, !isFinishingGenerating {
                 await finishGenerating()
@@ -221,7 +253,8 @@ final class NoteViewModel {
                     plainText: $0.text,
                     loadedPlainText: $0.loadedText
                 )
-            }
+            },
+            doctorSignOff: !session.belongsToEMR
         )
     }
 
@@ -271,9 +304,28 @@ final class NoteViewModel {
         startGeneratingPollTimerIfNeeded()
     }
 
+    private func shouldKeepGenerating(sessions: [AmbientNoteSession], epochAtStart: Int) -> Bool {
+        if sessions.hasAmbientSessionInProgress {
+            sawAmbientInProgress = true
+            return true
+        }
+        let completion = AmbientSessionCompletion.shared
+        if completion.isUploading(anyOf: sessionNoteIds) { return true }
+        guard completion.expectsGeneration(anyOf: sessionNoteIds) else { return false }
+        // Status fetched while upload was finishing can still say the session is idle.
+        if completion.uploadEpoch(for: sessionNoteIds) != epochAtStart { return true }
+        // Keep the note locked until the server reports generation, or the wait times out.
+        if !sawAmbientInProgress {
+            let age = completion.expectationAge(for: sessionNoteIds) ?? 0
+            return age < 30
+        }
+        return false
+    }
+
     private func finishGenerating() async {
         guard !isFinishingGenerating else { return }
         isFinishingGenerating = true
+        AmbientSessionCompletion.shared.clearExpectation(noteIds: sessionNoteIds)
         invalidateGeneratingTimers()
         generatingProgress = 1.0
         await fetchAndApplyNote(showSpinner: sections.isEmpty)
@@ -291,9 +343,10 @@ final class NoteViewModel {
         guard isGenerating, !isPollingGenerating, !isFinishingGenerating else { return }
         isPollingGenerating = true
         defer { isPollingGenerating = false }
+        let epochAtStart = AmbientSessionCompletion.shared.uploadEpoch(for: sessionNoteIds)
         do {
             let sessions = try await transcriptService.fetchSessions(forNoteIds: sessionNoteIds)
-            if !sessions.hasAmbientSessionInProgress {
+            if !shouldKeepGenerating(sessions: sessions, epochAtStart: epochAtStart) {
                 await finishGenerating()
             }
         } catch {

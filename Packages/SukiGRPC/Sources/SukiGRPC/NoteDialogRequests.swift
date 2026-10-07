@@ -95,7 +95,8 @@ enum NoteDialogRequests {
         composition: Learningmotors_Pb_Composer_Composition,
         organizationID: String,
         bypassQA: Bool,
-        tryAllDestinations: Bool
+        tryAllDestinations: Bool,
+        doctorSignOff: Bool = false
     ) -> Suki_Pb_S2_DialogRequest {
         var request = freshDialogRequest()
         var submitNoteRequest = Suki_Pb_Sms_SubmitCompositionRequest()
@@ -105,7 +106,7 @@ enum NoteDialogRequests {
         submitNoteRequest.id = composition.id
         submitNoteRequest.organizationID = organizationID
         submitNoteRequest.tryAllDestinations = tryAllDestinations
-        submitNoteRequest.isSignedOff = false
+        submitNoteRequest.isSignedOff = doctorSignOff
         submitNoteRequest.requestSentTime = request.requestTime
         request.submitCompositionRequest = submitNoteRequest
         return request

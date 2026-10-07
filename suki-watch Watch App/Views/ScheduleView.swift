@@ -19,15 +19,17 @@ struct ScheduleView: View {
                     range: Self.selectableDateRange
                 )
                 .onChange(of: viewModel.selectedDate) { _, _ in
-                    Task { await viewModel.load(forceEMRRefresh: true) }
+                    Task { await viewModel.load(forceEMRRefresh: viewModel.showsEMRRefresh) }
                 }
 
-                Button {
-                    Task { await viewModel.load(forceEMRRefresh: true) }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                if viewModel.showsEMRRefresh {
+                    Button {
+                        Task { await viewModel.load(forceEMRRefresh: true) }
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(viewModel.isRefreshing || !viewModel.hasCompletedInitialLoad)
                 }
-                .disabled(viewModel.isRefreshing || !viewModel.hasCompletedInitialLoad)
             }
 
             if viewModel.isLoading {

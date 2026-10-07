@@ -27,6 +27,22 @@ struct Appointment: Codable, Identifiable, Hashable {
         case compositionIds
     }
 
+    init(
+        id: String,
+        startsAt: String? = nil,
+        type: String? = nil,
+        reason: String? = nil,
+        patient: PatientSummary? = nil,
+        compositionIds: [String]? = nil
+    ) {
+        self.id = id
+        self.startsAt = startsAt
+        self.type = type
+        self.reason = reason
+        self.patient = patient
+        self.compositionIds = compositionIds
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -617,6 +633,21 @@ struct CurrentUserResponse: Decodable {
 
 struct CurrentUser: Decodable {
     var person: CurrentUserPerson?
+}
+
+// MARK: - Organization (`GET /organizations/{id}?withEmrInfo=true`)
+
+struct OrganisationResponse: Decodable {
+    var organizations: [OrganisationSummary]
+}
+
+struct OrganisationSummary: Decodable {
+    var id: String?
+    var emr: OrganisationEMRInfo?
+}
+
+struct OrganisationEMRInfo: Decodable {
+    var id: String?
 }
 
 struct CurrentUserPerson: Decodable {

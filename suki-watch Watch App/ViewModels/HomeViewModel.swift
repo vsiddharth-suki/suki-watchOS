@@ -19,6 +19,7 @@ final class HomeViewModel {
     private var didForceRefresh = false
 
     func loadToday() async {
+        await SessionStore.shared.refreshEMRMembership()
         await refreshWelcomeProfileIfNeeded()
         let hadScheduleCache = ScheduleAppointmentCache.hasSnapshot(for: Date())
         applyCachedScheduleIfAvailable()
@@ -34,8 +35,9 @@ final class HomeViewModel {
             isLoadingRecentNotes = false
         }
 
-        let forceEMR = !didForceRefresh && appointments.isEmpty
-        if !didForceRefresh {
+        let session = SessionStore.shared
+        let forceEMR = session.belongsToEMR && !didForceRefresh && appointments.isEmpty
+        if session.belongsToEMR, !didForceRefresh {
             didForceRefresh = true
         }
 
@@ -60,11 +62,15 @@ final class HomeViewModel {
         noteStatusByAppointmentId[appointmentId]
     }
 
-    /// Today's schedule on home — excludes appointments with a submitted note (green check).
+    private static let homeScheduleDisplayLimit = 5
+
+    /// Today's schedule on home — excludes submitted notes; capped for the home card.
     var homeScheduleAppointments: [Appointment] {
-        appointments.filter { appointment in
-            !isSubmittedScheduleAppointment(appointmentId: appointment.id)
-        }
+        Array(
+            appointments
+                .filter { !isSubmittedScheduleAppointment(appointmentId: $0.id) }
+                .prefix(Self.homeScheduleDisplayLimit)
+        )
     }
 
     private func isSubmittedScheduleAppointment(appointmentId: String) -> Bool {

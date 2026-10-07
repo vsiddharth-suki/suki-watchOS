@@ -85,7 +85,7 @@ struct NoteView: View {
                     }
 
                     if !model.isSubmittedNote && !model.isGenerating {
-                        Button(model.isSubmitting ? "Sending…" : "Send") {
+                        Button(model.isSubmitting ? model.submitButtonLoadingTitle : model.submitButtonTitle) {
                             model.sendNote()
                         }
                         .disabled(model.isSubmitting || model.isSavingSections || model.isLoading)
@@ -111,17 +111,21 @@ struct NoteView: View {
         }
         .task(id: viewModel.noteId) { await viewModel.load() }
         .onAppear {
-            viewModel.resumeGeneratingIfNeeded()
+            viewModel.handleAppear()
+        }
+        .onChange(of: path) { _, newPath in
+            guard case let .note(noteId, _, _) = newPath.last, noteId == viewModel.noteId else { return }
+            viewModel.handleAppear()
         }
         .onDisappear {
             viewModel.stopGenerating()
             guard !viewModel.isSubmittedNote, !viewModel.isGenerating else { return }
             Task { await viewModel.persistSectionEdits() }
         }
-        .alert("Note submitted", isPresented: $model.showSubmittedAlert) {
+        .alert(model.submittedAlertTitle, isPresented: $model.showSubmittedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Your note was submitted successfully.")
+            Text(model.submittedAlertMessage)
         }
         .alert("Delete Note?", isPresented: $showDeleteConfirmation) {
             Button("Delete", role: .destructive) {

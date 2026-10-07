@@ -9,19 +9,22 @@ public struct NoteSubmitCredentials: Sendable {
     public let userId: String
     public let organizationId: String
     public let sessionId: String
+    public let isEMRUser: Bool
 
     public init(
         jwtToken: String,
         accessToken: String,
         userId: String,
         organizationId: String,
-        sessionId: String
+        sessionId: String,
+        isEMRUser: Bool = true
     ) {
         self.jwtToken = jwtToken
         self.accessToken = accessToken
         self.userId = userId
         self.organizationId = organizationId
         self.sessionId = sessionId
+        self.isEMRUser = isEMRUser
     }
 }
 
@@ -46,19 +49,23 @@ public struct NoteSubmitPayload: Sendable {
     public let patientId: String
     public let appointmentId: String
     public let sections: [NoteSubmitSection]
+    /// Non-integrated manual completion (`isSignedOff` on submit request).
+    public let doctorSignOff: Bool
 
     public init(
         compositionId: String,
         noteTypeId: String,
         patientId: String,
         appointmentId: String = "",
-        sections: [NoteSubmitSection]
+        sections: [NoteSubmitSection],
+        doctorSignOff: Bool = false
     ) {
         self.compositionId = compositionId
         self.noteTypeId = noteTypeId
         self.patientId = patientId
         self.appointmentId = appointmentId
         self.sections = sections
+        self.doctorSignOff = doctorSignOff
     }
 }
 
@@ -334,6 +341,7 @@ public enum NoteSubmitGRPCClient {
         var sessionID = ""
         var userID = ""
         var patientID = ""
+        var doctorSignOff = false
     }
 
     private static func handleFetchedCompositionForSubmit(
@@ -382,6 +390,7 @@ public enum NoteSubmitGRPCClient {
         state.sessionID = credentials.sessionId
         state.userID = credentials.userId
         state.patientID = composition.metadata.patient.id.isEmpty ? payload.patientId : composition.metadata.patient.id
+        state.doctorSignOff = payload.doctorSignOff
         state.sectionUpdates = sectionUpdates(from: composition, payload: payload)
         state.sectionUpdateCursor = 0
         sendNextSectionUpdate(stream: stream, queue: queue, state: state, finish: finish)
@@ -519,7 +528,8 @@ public enum NoteSubmitGRPCClient {
                 composition: state.composition,
                 organizationID: state.organizationID,
                 bypassQA: true,
-                tryAllDestinations: NoteDialogRequests.tryAllDestinations(for: state.composition)
+                tryAllDestinations: NoteDialogRequests.tryAllDestinations(for: state.composition),
+                doctorSignOff: state.doctorSignOff
             )
         ]
         sendSequentially(requests, stream: stream, queue: queue, intervalMs: 120)
@@ -661,7 +671,11 @@ public enum NoteSubmitGRPCClient {
             value: credentials.accessToken,
             indexing: .nonIndexable
         )
-        client.defaultCallOptions.customMetadata.add(name: "is_emr", value: "true", indexing: .nonIndexable)
+        client.defaultCallOptions.customMetadata.add(
+            name: "is_emr",
+            value: credentials.isEMRUser ? "true" : "false",
+            indexing: .nonIndexable
+        )
         client.defaultCallOptions.customMetadata.add(name: "suki_primary_emr", value: "UNKNOWN_EMR", indexing: .nonIndexable)
         client.defaultCallOptions.customMetadata.add(name: "suki_secondary_emr", value: "ATHENA_EMR", indexing: .nonIndexable)
         client.defaultCallOptions.customMetadata.add(

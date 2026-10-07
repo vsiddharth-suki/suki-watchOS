@@ -28,7 +28,7 @@ struct HomeView: View {
                 } else if let error = viewModel.errorMessage {
                     Text(error).font(.caption2).foregroundStyle(.red)
                 } else if viewModel.homeScheduleAppointments.isEmpty {
-                    Text("No appointments today")
+                    Text(session.belongsToEMR ? "No appointments today" : "No patients today")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -51,7 +51,7 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
             } header: {
-                Text("Today's Schedule")
+                Text(session.belongsToEMR ? "Today's Schedule" : "Today's Patients")
             }
 
             Section {
@@ -110,7 +110,7 @@ struct HomeView: View {
         .navigationTitle("")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Image("SukiStageLogo")
+                Image(AppEnvironment.current.logoImageName)
                     .resizable()
                     .scaledToFit()
                     .frame(height: 24)

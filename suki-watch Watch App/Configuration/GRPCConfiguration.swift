@@ -1,6 +1,6 @@
 import Foundation
 
 enum GRPCConfiguration {
-    static let host = "suki-server.suki-stage.com"
+    static var host: String { AppEnvironment.current.grpcHost }
     static let port = 443
 }

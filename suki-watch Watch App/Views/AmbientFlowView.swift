@@ -3,6 +3,7 @@ import SwiftUI
 struct AmbientFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Bindable private var session = SessionStore.shared
     let launch: AmbientLaunchContext
 
     @State private var viewModel: AmbientFlowViewModel
@@ -108,10 +109,12 @@ struct AmbientFlowView: View {
             }
             .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
 
-            Button("Send to EHR") {
-                viewModel.finishAmbient(action: .sendToEHR)
+            if session.belongsToEMR {
+                Button("Send to EHR") {
+                    viewModel.finishAmbient(action: .sendToEHR)
+                }
+                .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
             }
-            .disabled(viewModel.selectedNoteType == nil && launch.noteId == nil)
         }
 
         if !viewModel.isAmbientForExistingNote {

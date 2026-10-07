@@ -9,6 +9,20 @@ enum DateRangeFormatter {
         return f
     }()
 
+    static func parseISO8601(_ iso: String) -> Date? {
+        let parsers: [ISO8601DateFormatter] = {
+            let withFraction = ISO8601DateFormatter()
+            withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let plain = ISO8601DateFormatter()
+            plain.formatOptions = [.withInternetDateTime]
+            return [withFraction, plain]
+        }()
+        if let parsed = parsers.compactMap({ $0.date(from: iso) }).first {
+            return parsed
+        }
+        return utcRangeFormatter.date(from: iso)
+    }
+
     static func dayRange(for date: Date) -> (start: String, end: String) {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)

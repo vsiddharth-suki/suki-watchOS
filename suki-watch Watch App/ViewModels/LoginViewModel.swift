@@ -11,7 +11,6 @@ final class LoginViewModel {
     private let authService = OktaAuthService()
     private let sessionStore = SessionStore.shared
     private let userProfileService = UserProfileService()
-
     func signIn() async {
         errorMessage = nil
         isLoading = true
@@ -28,6 +27,7 @@ final class LoginViewModel {
                 email: email.isEmpty ? (merged.email ?? "") : email
             )
             try? await userProfileService.fetchAndApplyCurrentUser(onLogin: true)
+            await sessionStore.refreshEMRMembership()
         } catch {
             errorMessage = error.localizedDescription
         }

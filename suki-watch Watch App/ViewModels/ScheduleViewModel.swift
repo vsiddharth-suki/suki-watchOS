@@ -15,14 +15,18 @@ final class ScheduleViewModel {
     var errorMessage: String?
 
     private let scheduleService = ScheduleService()
+    private let session = SessionStore.shared
+
+    var showsEMRRefresh: Bool { session.belongsToEMR }
 
     /// Loads schedule for `selectedDate`. Uses in-memory cache for instant UI when returning from profile.
     func load(forceEMRRefresh: Bool? = nil) async {
+        await session.refreshEMRMembership()
         isRefreshing = true
         let hadCache = ScheduleAppointmentCache.hasSnapshot(for: selectedDate)
         applyCachedSnapshotIfAvailable()
 
-        let shouldForceEMR = forceEMRRefresh ?? appointments.isEmpty
+        let shouldForceEMR = session.belongsToEMR && (forceEMRRefresh ?? appointments.isEmpty)
         let showBlockingLoader = !hadCache
         if showBlockingLoader {
             isLoading = true

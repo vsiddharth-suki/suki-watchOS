@@ -33,6 +33,7 @@ final class AmbientFlowViewModel {
     var errorMessage: String?
     var completionMessage: String?
 
+    private let session = SessionStore.shared
     private let ambientService = AmbientService()
     private let noteService = NoteService()
     private let patientService = PatientService()
@@ -96,6 +97,10 @@ final class AmbientFlowViewModel {
 
     func goToPatientStep() {
         if isAmbientForExistingNote {
+            if !session.belongsToEMR {
+                finishAmbient(action: .reviewNote)
+                return
+            }
             step = .noteType
             return
         }
@@ -159,7 +164,7 @@ final class AmbientFlowViewModel {
 
         Task {
             await service.stopRecording()
-            AmbientSessionCompletion.shared.start(service: service) {
+            AmbientSessionCompletion.shared.start(service: service, noteId: noteId) {
                 try await service.submitMetadata(
                     noteTypeId: noteTypeId,
                     noteId: noteId,

@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Suki-Stage@2x-5.png",
+      "filename" : "Suki-Dev@2x-5.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "Suki-Stage@2x-4.png",
+      "filename" : "Suki-Dev@2x-4.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "Suki-Stage@3x.png",
+      "filename" : "Suki-Dev@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

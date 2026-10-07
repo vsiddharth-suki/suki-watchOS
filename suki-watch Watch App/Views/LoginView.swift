@@ -2,11 +2,12 @@ import SwiftUI
 
 struct LoginView: View {
     @State private var viewModel = LoginViewModel()
+    @State private var selectedEnvironment = AppEnvironment.current
 
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
-                Image("SukiStageLogo")
+                Image(selectedEnvironment.logoImageName)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 56, height: 56)
@@ -31,6 +32,19 @@ struct LoginView: View {
                     Text(error)
                         .font(.caption2)
                         .foregroundStyle(.red)
+                }
+
+                Spacer(minLength: 8)
+
+                Picker("Environment", selection: $selectedEnvironment) {
+                    ForEach(AppEnvironment.allCases) { environment in
+                        Text(environment.displayName).tag(environment)
+                    }
+                }
+                .pickerStyle(.navigationLink)
+                .font(.caption2)
+                .onChange(of: selectedEnvironment) { _, newValue in
+                    AppEnvironment.select(newValue)
                 }
             }
             .padding(.horizontal, 4)
