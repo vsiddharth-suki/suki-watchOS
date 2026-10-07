@@ -30,6 +30,16 @@ final class NoteViewModel {
     var showSubmittedAlert = false
     var submitErrorMessage: String?
     var deleteErrorMessage: String?
+    /// True while an ambient session is still generating this note.
+    var isGenerating = false
+    /// Fake linear progress, ramps to `generatingThreshold` then holds until the poll completes.
+    var generatingProgress: Double = 0
+
+    var generatingText: String {
+        if generatingProgress >= 0.40 { return "Generating" }
+        if generatingProgress >= 0.20 { return "Processing" }
+        return "Uploading"
+    }
 
     private let noteService = NoteService()
     private let transcriptService = AmbientTranscriptService()
@@ -42,6 +52,16 @@ final class NoteViewModel {
     private var resolvedPatientId: String?
     private var appointmentId: String?
 
+    private static let generatingThreshold = 0.95
+    private static let generatingRampStep = 0.0416
+    private static let generatingRampInterval: TimeInterval = 0.5
+    private static let generatingPollInterval: TimeInterval = 3
+
+    private var generatingRampTimer: Timer?
+    private var generatingPollTimer: Timer?
+    private var isPollingGenerating = false
+    private var isFinishingGenerating = false
+
     init(noteId: String, patientId: String?, patientName: String?) {
         self.noteId = noteId
         self.patientId = patientId
@@ -50,9 +70,24 @@ final class NoteViewModel {
 
     func load() async {
         guard !didLoadContent else { return }
-        isLoading = true
+        await fetchAndApplyNote(showSpinner: true)
+    }
+
+    /// Restarts the fake-progress ramp and session poll if generation is still in progress.
+    func resumeGeneratingIfNeeded() {
+        guard isGenerating else { return }
+        beginGenerating()
+    }
+
+    /// Invalidates generating timers without clearing `isGenerating` (used on disappear).
+    func stopGenerating() {
+        invalidateGeneratingTimers()
+    }
+
+    private func fetchAndApplyNote(showSpinner: Bool) async {
+        if showSpinner { isLoading = true }
         errorMessage = nil
-        defer { isLoading = false }
+        defer { if showSpinner { isLoading = false } }
         do {
             let detail = try await noteService.fetchNoteDetail(noteId: noteId)
             compositionId = detail.compositionId ?? detail.id ?? detail.noteId ?? noteId
@@ -86,19 +121,23 @@ final class NoteViewModel {
             didLoadContent = true
             await refreshAmbientTranscriptAvailability()
         } catch {
-            errorMessage = error.localizedDescription
+            if sections.isEmpty {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 
     func refreshAmbientTranscriptAvailability() async {
-        var noteIds = [noteId]
-        if let compositionId, !compositionId.isEmpty, compositionId != noteId {
-            noteIds.append(compositionId)
-        }
+        let noteIds = sessionNoteIds
         do {
             let sessions = try await transcriptService.fetchSessions(forNoteIds: noteIds)
             ambientTranscriptNoteIds = noteIds
             showAmbientTranscriptButton = !sessions.isEmpty
+            if sessions.hasAmbientSessionInProgress {
+                beginGenerating()
+            } else if isGenerating, !isFinishingGenerating {
+                await finishGenerating()
+            }
         } catch {
             ambientTranscriptNoteIds = []
             showAmbientTranscriptButton = false
@@ -107,7 +146,7 @@ final class NoteViewModel {
 
     /// iOS `shipTypedUpdates`: `UPDATE_SECTION` with `content_s2` for sections whose text changed.
     func persistSectionEdits() async {
-        guard !isSavingSections, !isSubmitting, !isSubmittedNote else { return }
+        guard !isSavingSections, !isSubmitting, !isSubmittedNote, !isGenerating else { return }
         guard sections.contains(where: { $0.text != $0.loadedText }) else { return }
         guard let payload = makeSubmitPayload() else { return }
 
@@ -125,7 +164,7 @@ final class NoteViewModel {
     }
 
     func sendNote() {
-        guard !isSubmitting, !isSubmittedNote else { return }
+        guard !isSubmitting, !isSubmittedNote, !isGenerating else { return }
         submitErrorMessage = nil
 
         guard let compositionId, !compositionId.isEmpty else {
@@ -188,7 +227,7 @@ final class NoteViewModel {
 
     /// Deletes the note via REST; returns `true` when the caller should dismiss the screen.
     func deleteNote() async -> Bool {
-        guard !isDeleting, !isSubmittedNote else { return false }
+        guard !isDeleting, !isSubmittedNote, !isGenerating else { return false }
         deleteErrorMessage = nil
         guard let compositionId, !compositionId.isEmpty else {
             deleteErrorMessage = "Missing composition id."
@@ -213,5 +252,101 @@ final class NoteViewModel {
             noteId: noteId,
             startWithoutPatient: false
         )
+    }
+
+    private var sessionNoteIds: [String] {
+        var noteIds = [noteId]
+        if let compositionId, !compositionId.isEmpty, compositionId != noteId {
+            noteIds.append(compositionId)
+        }
+        return noteIds
+    }
+
+    private func beginGenerating() {
+        isGenerating = true
+        if generatingProgress <= 0 {
+            generatingProgress = 0
+        }
+        startGeneratingRampTimerIfNeeded()
+        startGeneratingPollTimerIfNeeded()
+    }
+
+    private func finishGenerating() async {
+        guard !isFinishingGenerating else { return }
+        isFinishingGenerating = true
+        invalidateGeneratingTimers()
+        generatingProgress = 1.0
+        await fetchAndApplyNote(showSpinner: sections.isEmpty)
+        if generatingPollTimer != nil {
+            generatingProgress = min(generatingProgress, Self.generatingThreshold)
+            isFinishingGenerating = false
+            return
+        }
+        isGenerating = false
+        generatingProgress = 0
+        isFinishingGenerating = false
+    }
+
+    private func pollGeneratingStatus() async {
+        guard isGenerating, !isPollingGenerating, !isFinishingGenerating else { return }
+        isPollingGenerating = true
+        defer { isPollingGenerating = false }
+        do {
+            let sessions = try await transcriptService.fetchSessions(forNoteIds: sessionNoteIds)
+            if !sessions.hasAmbientSessionInProgress {
+                await finishGenerating()
+            }
+        } catch {
+            // Keep the bar and retry on the next poll tick.
+        }
+    }
+
+    private func startGeneratingRampTimerIfNeeded() {
+        guard generatingRampTimer == nil else { return }
+        let timer = Timer(timeInterval: Self.generatingRampInterval, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            Task { @MainActor in
+                self.advanceGeneratingProgress()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        generatingRampTimer = timer
+    }
+
+    private func startGeneratingPollTimerIfNeeded() {
+        guard generatingPollTimer == nil else { return }
+        let timer = Timer(timeInterval: Self.generatingPollInterval, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            Task { @MainActor in
+                await self.pollGeneratingStatus()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        generatingPollTimer = timer
+    }
+
+    private func advanceGeneratingProgress() {
+        guard generatingProgress < Self.generatingThreshold else {
+            generatingRampTimer?.invalidate()
+            generatingRampTimer = nil
+            return
+        }
+        generatingProgress = min(
+            generatingProgress + Self.generatingRampStep,
+            Self.generatingThreshold
+        )
+    }
+
+    private func invalidateGeneratingTimers() {
+        generatingRampTimer?.invalidate()
+        generatingRampTimer = nil
+        generatingPollTimer?.invalidate()
+        generatingPollTimer = nil
     }
 }
