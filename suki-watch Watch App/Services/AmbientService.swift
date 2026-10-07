@@ -15,7 +15,7 @@ final class AmbientService: NSObject {
         self.sessionStore = sessionStore
     }
 
-    func beginSession() throws {
+    func beginSession() async throws {
         sessionId = UUID().uuidString.lowercased()
         let url = try AmbientUploadPendingStore.recordingFileURL(ambientSessionId: sessionId)
         recordingURL = url
@@ -32,7 +32,10 @@ final class AmbientService: NSObject {
 
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .default)
-        try session.setActive(true)
+        let activated = try await session.activate()
+        guard activated else {
+            throw AmbientAudioError.activationFailed
+        }
 
         recorder = try AVAudioRecorder(url: url, settings: settings)
         isPaused = false
@@ -54,16 +57,40 @@ final class AmbientService: NSObject {
         isPaused = false
     }
 
-    func stopRecording() {
+    func stopRecording() async {
         recorder?.stop()
         recorder = nil
         isPaused = false
-        try? AVAudioSession.sharedInstance().setActive(false)
+        await deactivateAudioSession()
+    }
+
+    /// Prefer async `deactivate` when available; otherwise deactivate off the main thread
+    /// so synchronous `setActive(false)` cannot hang the UI.
+    private func deactivateAudioSession() async {
+        if #available(watchOS 27.0, *) {
+            do {
+                _ = try await AVAudioSession.sharedInstance().deactivate()
+            } catch {
+                print("[Ambient] Failed to deactivate audio session: \(error.localizedDescription)")
+            }
+            return
+        }
+
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+                } catch {
+                    print("[Ambient] Failed to deactivate audio session: \(error.localizedDescription)")
+                }
+                continuation.resume()
+            }
+        }
     }
 
     /// Stops recording and deletes the local WAV (user aborted the flow).
-    func cancelSession() {
-        stopRecording()
+    func cancelSession() async {
+        await stopRecording()
         discardRecordingFile()
     }
 
@@ -141,5 +168,16 @@ final class AmbientService: NSObject {
             ambientSessionId: sessionId
         )
         discardRecordingFile()
+    }
+}
+
+private enum AmbientAudioError: LocalizedError {
+    case activationFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .activationFailed:
+            return "Failed to activate audio session"
+        }
     }
 }
