@@ -199,9 +199,15 @@ struct AmbientNoteSession: Decodable, Identifiable {
     var ambientSessionId: String?
     var startTime: String?
     var transcriptStatus: AmbientTranscriptStatus?
+    /// Raw server `ambient_status`. Unknown values stay `nil` so future statuses don't fail decode.
+    private var ambientStatusRaw: String?
     private var totalDurationRaw: String?
 
     var id: String { ambientSessionId ?? noteId ?? UUID().uuidString }
+
+    var ambientStatus: AmbientStatus? {
+        ambientStatusRaw.flatMap(AmbientStatus.init(rawValue:))
+    }
 
     var totalDurationSeconds: Int {
         Int(totalDurationRaw ?? "0") ?? 0
@@ -212,7 +218,23 @@ struct AmbientNoteSession: Decodable, Identifiable {
         case ambientSessionId = "ambient_session_id"
         case startTime = "start_time"
         case transcriptStatus = "transcript_status"
+        case ambientStatusRaw = "ambient_status"
         case totalDurationRaw = "total_duration"
+    }
+}
+
+enum AmbientStatus: String, Decodable, Equatable {
+    case unknown = "UNKNOWN"
+    case success = "SUCCESS"
+    case failure = "FAILURE"
+    case cancelled = "CANCELLED"
+    case inProgress = "IN_PROGRESS"
+    case collectingAudio = "COLLECTING_AUDIO"
+}
+
+extension Array where Element == AmbientNoteSession {
+    var hasAmbientSessionInProgress: Bool {
+        contains { $0.ambientStatus == .inProgress || $0.ambientStatus == .collectingAudio }
     }
 }
 
