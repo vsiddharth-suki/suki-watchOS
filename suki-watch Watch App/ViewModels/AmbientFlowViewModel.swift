@@ -52,7 +52,7 @@ final class AmbientFlowViewModel {
         errorMessage = nil
         await RecordingPauseNotificationService.ensureAuthorization()
         do {
-            try ambientService.beginSession()
+            try await ambientService.beginSession()
             isRecording = true
             isPaused = false
             recordingElapsedSeconds = 0
@@ -146,7 +146,6 @@ final class AmbientFlowViewModel {
         errorMessage = nil
         completionMessage = nil
         stopRecordingTimer()
-        ambientService.stopRecording()
         isRecording = false
         isPaused = false
         step = .finishing
@@ -158,30 +157,33 @@ final class AmbientFlowViewModel {
         let appointmentId = launch.appointmentId
         let service = ambientService
 
-        AmbientSessionCompletion.shared.start(service: service) {
-            try await service.submitMetadata(
-                noteTypeId: noteTypeId,
-                noteId: noteId,
-                patientId: patientId,
-                appointmentId: appointmentId,
-                autoSubmitToEMR: autoSubmit
-            )
-            try await service.uploadRecordingIfNeeded()
-        } onComplete: { [weak self] result in
-            guard let self else { return }
-            isLoading = false
-            switch result {
-            case .success:
-                switch action {
-                case .reviewNote:
-                    completionMessage = "Ambient session saved. Review the note from the patient profile when ready."
-                case .sendToEHR:
-                    completionMessage = "Ambient session saved. Note will auto-submit to the EHR when ready."
+        Task {
+            await service.stopRecording()
+            AmbientSessionCompletion.shared.start(service: service) {
+                try await service.submitMetadata(
+                    noteTypeId: noteTypeId,
+                    noteId: noteId,
+                    patientId: patientId,
+                    appointmentId: appointmentId,
+                    autoSubmitToEMR: autoSubmit
+                )
+                try await service.uploadRecordingIfNeeded()
+            } onComplete: { [weak self] result in
+                guard let self else { return }
+                isLoading = false
+                switch result {
+                case .success:
+                    switch action {
+                    case .reviewNote:
+                        completionMessage = "Ambient session saved. Review the note from the patient profile when ready."
+                    case .sendToEHR:
+                        completionMessage = "Ambient session saved. Note will auto-submit to the EHR when ready."
+                    }
+                    step = .done
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                    step = .noteType
                 }
-                step = .done
-            case .failure(let error):
-                errorMessage = error.localizedDescription
-                step = .noteType
             }
         }
     }
@@ -201,10 +203,12 @@ final class AmbientFlowViewModel {
     private func abortSessionIfActive() {
         RecordingPauseNotificationService.clearRecordingPausedNotification()
         stopRecordingTimer()
-        ambientService.cancelSession()
         isRecording = false
         isPaused = false
         recordingElapsedSeconds = 0
+        Task {
+            await ambientService.cancelSession()
+        }
     }
 
     private func startRecordingTimer() {
